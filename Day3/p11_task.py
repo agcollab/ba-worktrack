@@ -89,7 +89,7 @@ if __name__ == "__main__":
     t2.log_hours(2)
     t2.complete()
 
-    t3 = Task("Prepare UAT test cases", "Rahul", priority=Priority.LOW)
+    t3 = Task("Prepare UAT test cases", "Rahul", priority=Priority.LOW, due=date(2026, 10, 24))
 
     tasks = [t1, t2, t3]
 

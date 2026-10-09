@@ -12,3 +12,9 @@ Rule: before every commit, write three lines explaining what changed and why, in
 
 Questions / blockers:
 -
+
+## Day 3 – 10/08/2026 – JSON round trip and tests
+
+- I gave `t3` a concrete due date so the saved task includes an actual calendar date.
+- The JSON round trip turns the date into text and back, so comparing the loaded tasks with the originals checks that nothing was lost.
+- I started P14 with a test for that round trip so the serialization behavior can be checked automatically.

@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Draft BRD",
+    "assignee": "Ankur",
+    "status": "In Progress",
+    "priority": "High",
+    "hours": 3.5,
+    "due": "2026-10-20"
+  },
+  {
+    "title": "Write UAC for login",
+    "assignee": "Priya",
+    "status": "Done",
+    "priority": "Medium",
+    "hours": 2.0,
+    "due": null
+  },
+  {
+    "title": "Prepare UAT test cases",
+    "assignee": "Rahul",
+    "status": "To Do",
+    "priority": "Low",
+    "hours": 0.0,
+    "due": "2026-10-24"
+  }
+]
