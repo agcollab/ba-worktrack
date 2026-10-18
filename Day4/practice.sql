@@ -78,17 +78,27 @@ INSERT INTO time_entries (task_id, user_id, work_date, hours) VALUES
 -- S2-a  List all tasks that are NOT Done, newest first (by created_at).
 --       Hint: 6 rows, first one is "Data dictionary: orders".
 
+    -- Open tasks, newest first (6 rows)
+SELECT id, title, status, created_at
+FROM tasks
+WHERE status <> 'Done'
+ORDER BY created_at DESC;
 
 -- S2-b  Show only the 3 tasks due soonest (due_date ascending, LIMIT).
+-- 3 due soonest
+SELECT id, title, due_date FROM tasks ORDER BY due_date ASC LIMIT 3;
 
 
 -- S3-a  Move "Gap analysis: billing" to 'In Progress'. ALWAYS use WHERE.
 --       Then SELECT it to check.
-
+-- Safe update: SELECT first, then UPDATE with the same WHERE
+UPDATE tasks SET status = 'In Progress' WHERE title = 'Gap analysis: billing';
+SELECT * FROM tasks WHERE title = 'Gap analysis: billing';
 
 -- S3-b  Insert a throwaway task called 'TEST – delete me', then DELETE it
 --       (WHERE id = ...). Check with SELECT COUNT(*) FROM tasks;  → 8
-
+INSERT INTO tasks (title, status) VALUES ('TEST – delete me', 'To Do');
+DELETE FROM tasks WHERE title = 'TEST – delete me';
 
 -- S4    Try to break the foreign key: insert a time entry for task_id 99.
 --       You should get "FOREIGN KEY constraint failed". Then try hours = 30
@@ -97,22 +107,39 @@ INSERT INTO time_entries (task_id, user_id, work_date, hours) VALUES
 
 -- S5-a  INNER JOIN: every time entry with task title and user name.
 --       Columns: work_date, name, title, hours.  → 19 rows
+-- INNER JOIN: entry + task + user (19 rows)
+SELECT te.work_date, u.name, t.title, te.hours
+FROM time_entries te
+JOIN tasks t ON t.id = te.task_id
+JOIN users u ON u.id = te.user_id
+ORDER BY te.work_date, u.name;
+
 
 
 -- S5-b  LEFT JOIN: every task with its assignee name, including the one
 --       nobody is assigned to (name shows NULL).  → 8 rows
-
+-- LEFT JOIN: all 8 tasks, unassigned one shows NULL
+SELECT t.id, t.title, t.status, u.name AS assignee
+FROM tasks t
+LEFT JOIN users u ON u.id = t.assignee_id;
 
 -- S6-a  Total hours per user (SUM + GROUP BY), highest first.
 --       Hint: Asha 56.0, Ben 41.5, Chen 35.5
-
+-- Hours per user per week
+SELECT u.name, strftime('%Y-%W', te.work_date) AS week, SUM(te.hours) AS total_hours
+FROM time_entries te
+JOIN users u ON u.id = te.user_id
+GROUP BY u.name, week
+ORDER BY week, total_hours DESC;
 
 -- S6-b  Hours per user per week. Use strftime('%Y-%W', work_date) AS week.
 
 
 -- S6-c  Users with more than 40 hours in a single week (HAVING).
 --       → just Asha, week of 12 Oct, 43.0
-
+-- Over 40 in a week → only Asha, 43.0
+...same query...
+HAVING SUM(te.hours) > 40;
 
 -- S6-d  Number of tasks and average hours logged per task status
 --       (COUNT, AVG, LEFT JOIN so tasks with no hours still count).
