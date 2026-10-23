@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block title %}{{ "Edit " ~ project.key if project else "New project" }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/projects">Projects</a>{% if project %}&nbsp;/&nbsp;<a href="/projects/{{ project.id }}">{{ project.key }}</a>{% endif %}</nav>
+<div class="page-header"><h1>{{ "Edit project" if project else "New project" }}</h1></div>
+<form class="card" style="max-width:820px" method="post" action="{{ '/projects/%d/edit'|format(project.id) if project else '/projects' }}">{{ csrf() }}
+  <div class="card-body row g-3">
+    <div class="col-md-3"><label class="form-label" for="key">Key</label>
+      <input class="form-control text-uppercase" id="key" name="key" required pattern="[A-Za-z][A-Za-z0-9]{1,9}" maxlength="10" value="{{ project.key if project else '' }}" placeholder="PAY">
+      <div class="form-text">Prefix for task keys, e.g. PAY-12.</div></div>
+    <div class="col-md-9"><label class="form-label" for="name">Name</label>
+      <input class="form-control" id="name" name="name" required maxlength="120" value="{{ project.name if project else '' }}"></div>
+    <div class="col-md-6"><label class="form-label" for="owner">Project manager</label>
+      <select class="form-select" id="owner" name="owner_id"><option value="">None</option>
+        {% for p in people %}<option value="{{ p.id }}" {% if project and project.owner_id == p.id %}selected{% elif not project and p.id == user.id %}selected{% endif %}>{{ p.full_name }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label" for="sd">Start</label><input class="form-control" id="sd" type="date" name="start_date" value="{{ project.start_date.isoformat() if project and project.start_date else '' }}"></div>
+    <div class="col-md-3"><label class="form-label" for="ed">End</label><input class="form-control" id="ed" type="date" name="end_date" value="{{ project.end_date.isoformat() if project and project.end_date else '' }}"></div>
+    <div class="col-12"><label class="form-label" for="desc">Description</label><textarea class="form-control" id="desc" name="description" rows="4">{{ project.description if project and project.description else '' }}</textarea></div>
+  </div>
+  <div class="sticky-actions d-flex gap-2"><button class="btn btn-primary">{{ "Save" if project else "Create project" }}</button>
+    <a class="btn btn-ghost" href="{{ '/projects/%d'|format(project.id) if project else '/projects' }}">Cancel</a></div>
+</form>
+{% endblock %}

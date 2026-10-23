@@ -1,0 +1,12 @@
+{% if user %}
+{% if timer %}
+<div class="timer-pill" role="status">
+  <span class="dot" aria-hidden="true"></span>
+  <a class="text-reset text-decoration-none d-none d-md-inline" href="/tasks/{{ timer.task_id }}" title="{{ timer.task.title }}">{{ timer.task.key }}</a>
+  <span data-timer-started="{{ timer.started_at.isoformat() }}">0:00:00</span>
+  <form hx-post="/timer/stop" hx-target="#timer-slot" class="m-0">
+    <button class="btn btn-sm btn-success rounded-pill py-0 px-2" aria-label="Stop timer"><i class="bi bi-stop-fill"></i></button>
+  </form>
+</div>
+{% endif %}
+{% endif %}

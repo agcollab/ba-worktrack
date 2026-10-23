@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, empty with context %}
+{% block title %}{{ integration.name }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/integrations">Integrations</a>&nbsp;/&nbsp;{{ integration.name }}</nav>
+<div class="page-header">
+  <div><div class="d-flex gap-2 mb-1"><span class="chip {{ 'chip-jira' if integration.kind == 'jira' else 'chip-ado' }}">{{ "JIRA" if integration.kind == "jira" else "Azure DevOps" }}</span>
+      {% if not integration.is_enabled %}<span class="chip">Disabled</span>{% endif %}{% if integration.auto_sync %}<span class="chip"><i class="bi bi-arrow-repeat"></i>Auto sync</span>{% endif %}</div>
+    <h1>{{ integration.name }}</h1>
+    <p class="subtitle">{{ integration.base_url }} · {{ integration.remote_project }} → {{ integration.local_project.name if integration.local_project else "no project" }} · {{ linked }} linked tasks</p></div>
+  <div class="d-flex gap-2 flex-wrap">
+    <form method="post" action="/integrations/{{ integration.id }}/test" class="m-0">{{ csrf() }}<button class="btn btn-ghost"><i class="bi bi-plug me-1"></i>Test connection</button></form>
+    <form method="post" action="/integrations/{{ integration.id }}/import" class="m-0">{{ csrf() }}<button class="btn btn-primary"><i class="bi bi-cloud-download me-1"></i>Import now</button></form>
+    <form method="post" action="/integrations/{{ integration.id }}/sync" class="m-0">{{ csrf() }}<button class="btn btn-soft"><i class="bi bi-arrow-repeat me-1"></i>Sync statuses</button></form>
+    <a class="btn btn-ghost" href="/integrations/{{ integration.id }}/edit"><i class="bi bi-gear me-1"></i>Settings</a>
+  </div>
+</div>
+{% if integration.last_sync_message %}
+<div class="alert alert-{{ 'success' if integration.last_sync_status == 'ok' else 'warning' }} small"><b>Last run{% if integration.last_sync_at %} {{ integration.last_sync_at|relative }}{% endif %}:</b> {{ integration.last_sync_message }}</div>
+{% endif %}
+<div class="row g-4">
+  <div class="col-lg-5" id="mapping">
+    <div class="card">
+      <div class="card-header">Status mapping</div>
+      <form method="post" action="/integrations/{{ integration.id }}/mappings">{{ csrf() }}
+        <div class="card-body">
+          <p class="small text-body-secondary">Our status on the left, the {{ "JIRA" if integration.kind == "jira" else "Azure DevOps" }} status name on the right. Used both ways; unmapped remote statuses are matched by category or common names.</p>
+          {% for s in statuses %}
+          <div class="row g-2 align-items-center mb-2"><div class="col-5"><span class="status-pill {{ STATUS_CLASSES[s] }}">{{ s.value }}</span></div>
+            <div class="col-7"><input class="form-control form-control-sm" name="status-{{ s.name }}" value="{{ mapping.get(s.value, '') }}" aria-label="Remote status for {{ s.value }}"></div></div>
+          {% endfor %}
+          <div class="small text-body-secondary mt-3">Conflicts: <b>{{ policies[integration.config.get('conflict_policy', 'remote_wins')] }}</b> (change in settings).</div>
+        </div>
+        <div class="sticky-actions d-flex gap-2"><button class="btn btn-primary btn-sm">Save mapping</button><button class="btn btn-ghost btn-sm" name="reset" value="1">Reset to defaults</button></div>
+      </form>
+    </div>
+    <div class="card mt-4"><div class="card-body small">
+      <div class="fw-semibold mb-2">How it works</div>
+      <ul class="mb-0 ps-3">
+        <li><b>Import</b> creates tasks for new items and refreshes title, description, priority, due date and assignee (matched by email) on linked ones.</li>
+        <li><b>Push</b> from a task creates a linked item; <b>Push to {{ integration.kind|upper }}</b> on a task posts its requirements, UAC and test cases as a comment.</li>
+        <li><b>Sync</b> copies status changes in both directions and logs conflicts below.</li>
+      </ul>
+      <form method="post" action="/integrations/{{ integration.id }}/delete" class="mt-3" data-confirm="Delete this integration? Imported tasks are kept but unlinked.">{{ csrf() }}
+        <button class="btn btn-sm btn-ghost text-danger"><i class="bi bi-trash me-1"></i>Delete integration</button></form>
+    </div></div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card"><div class="card-header">Sync log</div>
+      {% if logs %}
+      <div class="list-group list-group-flush">
+        {% for l in logs %}
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between align-items-center"><span class="fw-semibold text-capitalize">{{ l.action }}</span>
+            <span class="chip">{% if l.status == "ok" %}<i class="bi bi-check-circle text-success"></i>{% elif l.status == "partial" %}<i class="bi bi-exclamation-triangle text-warning"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %} {{ l.status }} · {{ l.created_at|relative }}</span></div>
+          <div class="small text-body-secondary mt-1">{{ l.items_processed }} checked · {{ l.items_created }} created · {{ l.items_updated }} updated · {{ l.conflicts }} conflicts</div>
+          {% if l.message %}<details class="small mt-1"><summary>Details</summary><pre class="small mb-0 mt-2" style="white-space:pre-wrap">{{ l.message }}</pre></details>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}{{ empty("bi-journal", "Nothing has run yet", "Test the connection, then import.") }}{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status, priority, due, avatar, csrf, source_chip, empty with context %}
+{% block title %}{{ task.key }} {{ task.title }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/tasks">Tasks</a>&nbsp;/&nbsp;<a href="/projects/{{ task.project_id }}">{{ task.project.name }}</a>&nbsp;/&nbsp;{{ task.key }}</nav>
+<div class="page-header">
+  <div class="flex-grow-1" style="min-width:280px">
+    <div class="d-flex align-items-center gap-2 mb-1"><span class="task-key">{{ task.key }}</span>{{ source_chip(task) }}
+      {% if task.external_url %}<a class="small" href="{{ task.external_url }}" target="_blank" rel="noopener">Open in {{ "JIRA" if task.external_source == "jira" else "Azure DevOps" }} <i class="bi bi-box-arrow-up-right"></i></a>{% endif %}</div>
+    <h1>{{ task.title }}</h1>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if not timer or timer.task_id != task.id %}
+    <form hx-post="/timer/start" hx-target="#timer-slot" class="m-0"><input type="hidden" name="task_id" value="{{ task.id }}">
+      <button class="btn btn-soft"><i class="bi bi-play-fill me-1"></i>Start timer</button></form>
+    {% endif %}
+    {% if can_edit %}<a class="btn btn-ghost" href="/tasks/{{ task.id }}/edit"><i class="bi bi-pencil me-1"></i>Edit</a>{% endif %}
+    <div class="dropdown">
+      <button class="btn btn-ghost btn-icon" data-bs-toggle="dropdown" aria-label="More actions"><i class="bi bi-three-dots"></i></button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        {% if ai_enabled %}<li><a class="dropdown-item" href="/ai?task_id={{ task.id }}"><i class="bi bi-stars me-2"></i>Generate with AI</a></li>{% endif %}
+        <li><a class="dropdown-item" href="/requirements/new?task_id={{ task.id }}"><i class="bi bi-journal-plus me-2"></i>Add requirement</a></li>
+        <li><a class="dropdown-item" href="/exports/test-cases.xlsx?task_id={{ task.id }}"><i class="bi bi-file-earmark-excel me-2"></i>Export test cases</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><form method="post" action="/tasks/{{ task.id }}/delete" data-confirm="Delete {{ task.key }} and all its time, comments and files?">{{ csrf() }}
+          <button class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Delete task</button></form></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-8">
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="mb-3">{% include "tasks/_status.html" %}</div>
+        {% if task.description %}<div class="desc">{{ task.description }}</div>
+        {% else %}<div class="text-body-secondary small">No description yet.</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="card mb-4" id="requirements">
+      <div class="card-header"><span>Requirements, UAC &amp; test cases</span>
+        <div class="d-flex gap-2">
+          {% if task.external_id and requirements %}
+          <form method="post" action="/tasks/{{ task.id }}/push-requirements" class="m-0">{{ csrf() }}
+            <button class="btn btn-sm btn-soft"><i class="bi bi-send me-1"></i>Push to {{ "JIRA" if task.external_source == "jira" else "ADO" }}</button></form>
+          {% endif %}
+          {% if ai_enabled %}<a class="btn btn-sm btn-ghost" href="/ai?task_id={{ task.id }}"><i class="bi bi-stars me-1"></i>AI</a>{% endif %}
+          <a class="btn btn-sm btn-ghost" href="/requirements/new?task_id={{ task.id }}"><i class="bi bi-plus-lg"></i></a>
+        </div></div>
+      {% if requirements %}
+      <div class="list-group list-group-flush">
+        {% for r in requirements %}
+        <a class="list-group-item list-group-item-action py-3" href="/requirements/{{ r.id }}">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div><span class="task-key">REQ-{{ r.id }}</span> <span class="fw-semibold">{{ r.title }}</span>
+              {% if r.source == "AI" %}<span class="chip chip-ai ms-1"><i class="bi bi-stars"></i>AI</span>{% endif %}</div>
+            <span class="chip">{{ r.status }}</span>
+          </div>
+          <div class="small text-body-secondary mt-1">{{ r.criteria|length }} acceptance criteria · {{ r.test_cases|length }} test cases · {{ r.kind }}</div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}{{ empty("bi-journal-text", "No requirements yet", "Write them by hand or let AI Studio draft UAC and test cases.") }}{% endif %}
+    </div>
+
+    <div class="card mb-4" id="comments">
+      <div class="card-header">Comments</div>
+      <div class="card-body">
+        {% include "tasks/_comments.html" %}
+        <form class="mt-3" hx-post="/tasks/{{ task.id }}/comments" hx-target="#comments-list" hx-swap="outerHTML"
+              data-reset-after>
+          <label class="visually-hidden" for="comment">Add a comment</label>
+          <textarea class="form-control mb-2" id="comment" name="body" rows="3" placeholder="Add a comment…" required maxlength="10000"></textarea>
+          <button class="btn btn-primary btn-sm">Comment</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" id="time">
+      <div class="card-header"><span>Time logged · {{ task.total_hours|hours }}{% if task.estimate_hours %} of {{ task.estimate_hours|hours }} estimated{% endif %}</span></div>
+      <div class="card-body border-bottom">
+        <form class="row g-2 align-items-end" method="post" action="/time">{{ csrf() }}
+          <input type="hidden" name="task_id" value="{{ task.id }}"><input type="hidden" name="next" value="/tasks/{{ task.id }}#time">
+          <div class="col-sm-3"><label class="form-label" for="wd">Date</label><input class="form-control" id="wd" type="date" name="work_date" value="{{ today().isoformat() }}" max="{{ today().isoformat() }}" required></div>
+          <div class="col-sm-2"><label class="form-label" for="hrs">Hours</label><input class="form-control" id="hrs" type="number" name="hours" min="0.05" max="24" step="0.25" required></div>
+          <div class="col-sm-5"><label class="form-label" for="note">Note</label><input class="form-control" id="note" name="note" maxlength="500" placeholder="What did you work on?"></div>
+          <div class="col-sm-2"><button class="btn btn-primary w-100">Log</button></div>
+        </form>
+      </div>
+      {% if task.time_entries %}
+      <div class="table-responsive"><table class="table align-middle">
+        <thead><tr><th>Date</th><th>Who</th><th>Hours</th><th>Note</th><th></th></tr></thead>
+        <tbody>{% for e in task.time_entries|sort(attribute="work_date", reverse=True) %}
+          <tr><td class="text-nowrap">{{ e.work_date|date("%a %d %b") }}</td><td>{{ e.user.full_name }}</td><td><span class="cell-hours">{{ e.hours|hours }}</span></td>
+            <td class="small">{{ e.note or "" }}</td>
+            <td class="text-end">{% if e.user_id == user.id or user.is_manager %}
+              <form method="post" action="/time/{{ e.id }}/delete" class="m-0" data-confirm="Delete this time entry?">{{ csrf() }}<input type="hidden" name="next" value="/tasks/{{ task.id }}#time">
+                <button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="Delete entry"><i class="bi bi-trash"></i></button></form>{% endif %}</td></tr>
+        {% endfor %}</tbody></table></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card mb-4">
+      <div class="card-body">
+        <dl class="meta-list mb-0">
+          <dt>Assignee</dt><dd>{% if task.assignee %}<span class="d-inline-flex align-items-center gap-2">{{ avatar(task.assignee) }}{{ task.assignee.full_name }}</span>{% else %}<span class="text-body-secondary">Unassigned</span>{% endif %}</dd>
+          <dt>Priority</dt><dd>{{ priority(task.priority) }}</dd>
+          <dt>Type</dt><dd><span class="chip">{{ task.task_type }}</span></dd>
+          <dt>Due</dt><dd>{{ due(task) }}{% if task.due_date %} <span class="small text-body-secondary">({{ task.due_date|relative }})</span>{% endif %}</dd>
+          <dt>Estimate</dt><dd>{{ task.estimate_hours|hours }}</dd>
+          <dt>Created</dt><dd>{{ task.created_at|date("%d %b %Y %H:%M") }}</dd>
+          <dt>Updated</dt><dd class="mb-0">{{ task.updated_at|relative }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header">JIRA / Azure DevOps</div>
+      <div class="card-body">
+        {% if task.external_id %}
+          <p class="small mb-2">Linked to {{ source_chip(task) }}. Remote status: <b>{{ task.external_status or "unknown" }}</b>.</p>
+          {% if task.synced_at %}<p class="small text-body-secondary">Last synced {{ task.synced_at|relative }}.</p>{% endif %}
+          {% if task.integration_id %}
+          <form method="post" action="/tasks/{{ task.id }}/sync" class="m-0">{{ csrf() }}
+            <button class="btn btn-sm btn-ghost"><i class="bi bi-arrow-repeat me-1"></i>Sync status now</button></form>
+          {% endif %}
+        {% elif integrations %}
+          <form method="post" action="/tasks/{{ task.id }}/push">{{ csrf() }}
+            <label class="form-label" for="integ">Create a linked item in</label>
+            <div class="input-group input-group-sm">
+              <select class="form-select" id="integ" name="integration_id">{% for i in integrations %}<option value="{{ i.id }}">{{ i.name }} ({{ i.kind|upper }})</option>{% endfor %}</select>
+              <button class="btn btn-soft">Push task</button></div>
+            <div class="form-text">Creates an issue / work item and keeps its status in sync.</div>
+          </form>
+        {% else %}
+          <p class="small text-body-secondary mb-0">No integrations set up.{% if user.is_admin %} <a href="/integrations/new">Connect JIRA or ADO</a>.{% endif %}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card mb-4" id="files">
+      <div class="card-header">Files</div>
+      <div class="card-body">
+        {% for a in task.attachments %}
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <i class="bi bi-file-earmark text-primary"></i>
+          <a class="small text-truncate flex-grow-1" href="/tasks/{{ task.id }}/attachments/{{ a.id }}">{{ a.filename }}</a>
+          <span class="small text-body-secondary">{{ (a.size_bytes / 1024)|round(0)|int }} KB</span>
+          <form method="post" action="/tasks/{{ task.id }}/attachments/{{ a.id }}/delete" class="m-0" data-confirm="Delete {{ a.filename }}?">{{ csrf() }}
+            <button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="Delete file"><i class="bi bi-x-lg"></i></button></form>
+        </div>
+        {% endfor %}
+        <form method="post" action="/tasks/{{ task.id }}/attachments" enctype="multipart/form-data" class="mt-2">{{ csrf() }}
+          <label class="visually-hidden" for="file">Upload a file</label>
+          <div class="input-group input-group-sm"><input class="form-control" id="file" type="file" name="file" required><button class="btn btn-ghost">Upload</button></div>
+          <div class="form-text">Documents, images, spreadsheets, up to 10 MB.</div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">History</div>
+      <div class="card-body">
+        <ul class="timeline">
+          {% for h in task.status_history|reverse %}
+          <li>{% if h.from_status %}{{ h.from_status }} → {% else %}Created as {% endif %}<b>{{ h.to_status }}</b>
+            <div class="small text-body-secondary">{{ h.changed_by.full_name if h.changed_by else ("Sync" if task.external_source else "System") }} · {{ h.changed_at|date("%d %b %H:%M") }}</div></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

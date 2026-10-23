@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, export_menu, empty, avatar with context %}
+{% block title %}Timesheet{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Timesheet{% if subject.id != user.id %} · {{ subject.full_name }}{% endif %}</h1>
+    <p class="subtitle">Week of {{ sheet.start|date("%d %b %Y") }} · {{ sheet.total|hours }} of {{ subject.weekly_capacity_hours|round(0)|int }}h ({{ sheet.utilisation }}%)</p></div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if team %}
+    <form method="get" action="/timesheet" class="m-0"><input type="hidden" name="week" value="{{ sheet.start.isoformat() }}">
+      <select class="form-select" name="user_id" data-autosubmit aria-label="Person">
+        {% for p in team %}<option value="{{ p.id }}" {% if p.id == subject.id %}selected{% endif %}>{{ p.full_name }}</option>{% endfor %}
+      </select></form>
+    {% endif %}
+    <div class="btn-group">
+      <a class="btn btn-ghost" href="/timesheet?{{ query({'week': prev_week.isoformat(), 'user_id': subject.id if subject.id != user.id else None}) }}" aria-label="Previous week"><i class="bi bi-chevron-left"></i></a>
+      <a class="btn btn-ghost" href="/timesheet?{{ query({'user_id': subject.id if subject.id != user.id else None}) }}">This week</a>
+      <a class="btn btn-ghost{% if next_week > this_week %} disabled{% endif %}" href="/timesheet?{{ query({'week': next_week.isoformat(), 'user_id': subject.id if subject.id != user.id else None}) }}" aria-label="Next week"><i class="bi bi-chevron-right"></i></a>
+    </div>
+    {{ export_menu("/exports/time", {"week": sheet.start.isoformat(), "user_id": subject.id}) }}
+  </div>
+</div>
+
+{% if editable %}
+<div class="row g-4 mb-4">
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header">Log time</div>
+      <form class="card-body row g-2 align-items-end" method="post" action="/time">{{ csrf() }}
+        <input type="hidden" name="next" value="/timesheet?week={{ sheet.start.isoformat() }}">
+        <div class="col-md-5"><label class="form-label" for="task">Task</label>
+          <select class="form-select" id="task" name="task_id" required>
+            {% for t in task_options %}<option value="{{ t.id }}">{{ t.key }} · {{ t.title|truncate(60) }}</option>{% endfor %}
+          </select></div>
+        <div class="col-md-3"><label class="form-label" for="wd">Date</label>
+          <input class="form-control" id="wd" type="date" name="work_date" value="{{ (today() if sheet.start == this_week else sheet.start).isoformat() }}" max="{{ today().isoformat() }}" required></div>
+        <div class="col-md-2"><label class="form-label" for="hrs">Hours</label>
+          <input class="form-control" id="hrs" type="number" name="hours" min="0.05" max="24" step="0.25" required></div>
+        <div class="col-md-2"><button class="btn btn-primary w-100">Log</button></div>
+        <div class="col-12"><input class="form-control form-control-sm" name="note" maxlength="500" placeholder="Note (optional)" aria-label="Note"></div>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header">Timer</div>
+      <div class="card-body">
+        {% if timer %}
+          <div class="mb-2 small text-body-secondary">Running on</div>
+          <a class="fw-semibold d-block mb-2" href="/tasks/{{ timer.task_id }}">{{ timer.task.key }} · {{ timer.task.title }}</a>
+          <div class="fs-3 fw-bold mb-3" data-timer-started="{{ timer.started_at.isoformat() }}">0:00:00</div>
+          <form method="post" action="/timer/stop">{{ csrf() }}<button class="btn btn-success"><i class="bi bi-stop-fill me-1"></i>Stop and log</button></form>
+        {% else %}
+          <form method="post" action="/timer/start">{{ csrf() }}
+            <label class="form-label" for="ttask">Start a timer on</label>
+            <select class="form-select mb-2" id="ttask" name="task_id">{% for t in task_options %}<option value="{{ t.id }}">{{ t.key }} · {{ t.title|truncate(50) }}</option>{% endfor %}</select>
+            <button class="btn btn-soft w-100"><i class="bi bi-play-fill me-1"></i>Start timer</button></form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  {% if sheet.rows %}
+  <div class="table-responsive"><table class="table timesheet align-middle">
+    <thead><tr><th>Task</th>
+      {% for d in sheet.days %}<th class="{% if d.weekday() >= 5 %}weekend{% endif %} {% if d == today() %}is-today{% endif %}">{{ d|date("%a") }}<div class="fw-normal">{{ d|date("%d %b") }}</div></th>{% endfor %}
+      <th>Total</th></tr></thead>
+    <tbody>
+    {% for row in sheet.rows %}
+      <tr><td style="min-width:240px"><div class="task-key">{{ row.task.key }}</div><a class="row-link" href="/tasks/{{ row.task.id }}">{{ row.task.title|truncate(70) }}</a></td>
+        {% for d in sheet.days %}
+        <td class="{% if d.weekday() >= 5 %}weekend{% endif %}">
+          {% if row.hours.get(d) %}
+            {% if editable %}
+            <div class="dropdown">
+              <button class="btn btn-link p-0 text-decoration-none" data-bs-toggle="dropdown" aria-label="Edit {{ row.hours[d] }} hours on {{ d|date }}"><span class="cell-hours">{{ row.hours[d]|hours }}</span></button>
+              <div class="dropdown-menu p-3" style="min-width:300px">
+                {% for e in row.entries[d] %}
+                <form class="row g-2 align-items-end mb-2" method="post" action="/time/{{ e.id }}/edit">{{ csrf() }}
+                  <input type="hidden" name="next" value="/timesheet?week={{ sheet.start.isoformat() }}">
+                  <input type="hidden" name="work_date" value="{{ e.work_date.isoformat() }}">
+                  <div class="col-4"><label class="form-label small">Hours</label><input class="form-control form-control-sm" type="number" name="hours" value="{{ e.hours }}" min="0.05" max="24" step="0.25"></div>
+                  <div class="col-8"><label class="form-label small">Note</label><input class="form-control form-control-sm" name="note" value="{{ e.note or '' }}" maxlength="500"></div>
+                  <div class="col-12 d-flex gap-2"><button class="btn btn-primary btn-sm">Save</button>
+                    <button class="btn btn-ghost btn-sm text-danger" formaction="/time/{{ e.id }}/delete">Delete</button></div>
+                </form>
+                {% endfor %}
+              </div>
+            </div>
+            {% else %}<span class="cell-hours">{{ row.hours[d]|hours }}</span>{% endif %}
+          {% else %}<span class="text-body-tertiary">·</span>{% endif %}
+        </td>
+        {% endfor %}
+        <td class="fw-semibold">{{ row.total|hours }}</td></tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr class="fw-semibold"><td>Total</td>
+      {% for d in sheet.days %}<td class="{% if d.weekday() >= 5 %}weekend{% endif %} {% if sheet.day_totals[d] > 10 %}text-danger{% endif %}">{{ sheet.day_totals[d]|hours if sheet.day_totals[d] else "–" }}</td>{% endfor %}
+      <td>{{ sheet.total|hours }}</td></tr></tfoot>
+  </table></div>
+  {% else %}
+    {{ empty("bi-calendar-week", "No time logged this week", "Log time above or start a timer on a task.") }}
+  {% endif %}
+</div>
+{% endblock %}

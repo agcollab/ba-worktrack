@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block body %}
+<div class="login-wrap">
+  <section class="login-art">
+    <div class="d-flex align-items-center gap-2 fw-bold fs-5"><span class="brand-mark" style="width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#6366f1,#8b5cf6)"><i class="bi bi-kanban"></i></span>{{ app_name }}</div>
+    <div>
+      <h2 class="mb-4">Plan, track and deliver business analysis work in one place.</h2>
+      <div class="feature"><i class="bi bi-kanban"></i><div><b class="text-white">Tasks, Kanban and timesheets</b><br>Status workflow, timers and weekly hours.</div></div>
+      <div class="feature"><i class="bi bi-plug"></i><div><b class="text-white">JIRA &amp; Azure DevOps</b><br>Import work items, push UAC and test cases, keep statuses in sync.</div></div>
+      <div class="feature"><i class="bi bi-file-earmark-bar-graph"></i><div><b class="text-white">Reports &amp; exports</b><br>Dashboards, weekly PDF / Excel reports, CSV exports.</div></div>
+    </div>
+    <div class="small text-white-50">Secure sign-in · roles for Admin, PM and BA</div>
+  </section>
+  <section class="login-form">
+    <form method="post" action="/login" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <h1 class="h3 fw-bold mb-1">Welcome back</h1>
+      <p class="text-body-secondary mb-4">Sign in to your workspace.</p>
+      {% if error %}<div class="alert alert-danger d-flex gap-2 align-items-center" role="alert"><i class="bi bi-exclamation-octagon"></i>{{ error }}</div>{% endif %}
+      <div class="mb-3">
+        <label class="form-label" for="email">Email</label>
+        <input class="form-control form-control-lg" id="email" name="email" type="email" value="{{ email }}" autocomplete="username" required autofocus>
+      </div>
+      <div class="mb-4">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn-primary btn-lg w-100">Sign in</button>
+      <p class="small text-body-secondary mt-4 mb-0">Forgot your password? Ask an administrator to reset it.</p>
+      <button type="button" class="btn btn-link btn-sm px-0 mt-2" data-theme-toggle><i class="bi bi-circle-half me-1"></i>Toggle theme</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

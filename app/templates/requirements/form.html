@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block title %}{{ "Edit requirement" if requirement else "New requirement" }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/requirements">Requirements</a>{% if requirement %}&nbsp;/&nbsp;<a href="/requirements/{{ requirement.id }}">REQ-{{ requirement.id }}</a>{% endif %}</nav>
+<div class="page-header"><h1>{{ "Edit requirement" if requirement else "New requirement" }}</h1></div>
+<form class="card" style="max-width:860px" method="post" action="{{ '/requirements/%d/edit'|format(requirement.id) if requirement else '/requirements' }}">{{ csrf() }}
+  <div class="card-body row g-3">
+    <div class="col-12"><label class="form-label" for="title">Title</label>
+      <input class="form-control" id="title" name="title" required maxlength="200" value="{{ requirement.title if requirement else '' }}" placeholder="The system shall…"></div>
+    <div class="col-md-6"><label class="form-label" for="proj">Project</label>
+      <select class="form-select" id="proj" name="project_id" required>{% for p in projects %}<option value="{{ p.id }}" {% if project_id == p.id %}selected{% endif %}>{{ p.key }} · {{ p.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-6"><label class="form-label" for="task">Linked task</label>
+      <select class="form-select" id="task" name="task_id"><option value="">None</option>
+        {% for t in tasks %}<option value="{{ t.id }}" {% if task_id == t.id %}selected{% endif %}>{{ t.key }} · {{ t.title|truncate(60) }}</option>{% endfor %}</select></div>
+    <div class="col-md-6"><label class="form-label" for="kind">Kind</label>
+      <select class="form-select" id="kind" name="kind">{% for k in kinds %}<option {% if requirement and requirement.kind == k %}selected{% endif %}>{{ k }}</option>{% endfor %}</select></div>
+    <div class="col-md-6"><label class="form-label" for="status">Status</label>
+      <select class="form-select" id="status" name="status">{% for s in statuses %}<option {% if requirement and requirement.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <div class="col-12"><label class="form-label" for="desc">Description</label>
+      <textarea class="form-control" id="desc" name="description" rows="6" placeholder="Business rules, data, open questions…">{{ requirement.description if requirement and requirement.description else '' }}</textarea></div>
+  </div>
+  <div class="sticky-actions d-flex gap-2"><button class="btn btn-primary">Save</button><a class="btn btn-ghost" href="{{ '/requirements/%d'|format(requirement.id) if requirement else '/requirements' }}">Cancel</a></div>
+</form>
+{% endblock %}
