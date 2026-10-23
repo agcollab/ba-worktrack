@@ -21,9 +21,11 @@
         {% if ai_enabled %}<li><a class="dropdown-item" href="/ai?task_id={{ task.id }}"><i class="bi bi-stars me-2"></i>Generate with AI</a></li>{% endif %}
         <li><a class="dropdown-item" href="/requirements/new?task_id={{ task.id }}"><i class="bi bi-journal-plus me-2"></i>Add requirement</a></li>
         <li><a class="dropdown-item" href="/exports/test-cases.xlsx?task_id={{ task.id }}"><i class="bi bi-file-earmark-excel me-2"></i>Export test cases</a></li>
+        {% if not task.is_read_only %}
         <li><hr class="dropdown-divider"></li>
         <li><form method="post" action="/tasks/{{ task.id }}/delete" data-confirm="Delete {{ task.key }} and all its time, comments and files?">{{ csrf() }}
           <button class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Delete task</button></form></li>
+        {% endif %}
       </ul>
     </div>
   </div>
@@ -109,7 +111,7 @@
         <dl class="meta-list mb-0">
           <dt>Assignee</dt><dd>{% if task.assignee %}<span class="d-inline-flex align-items-center gap-2">{{ avatar(task.assignee) }}{{ task.assignee.full_name }}</span>{% else %}<span class="text-body-secondary">Unassigned</span>{% endif %}</dd>
           <dt>Priority</dt><dd>{{ priority(task.priority) }}</dd>
-          <dt>Type</dt><dd><span class="chip">{{ task.task_type }}</span></dd>
+          <dt>Type</dt><dd><span class="chip">{{ task.type_label }}</span>{% if task.item_type and task.item_type.name != task.task_type.value %} <span class="small text-body-secondary">({{ task.task_type }} in reports)</span>{% endif %}</dd>
           <dt>Due</dt><dd>{{ due(task) }}{% if task.due_date %} <span class="small text-body-secondary">({{ task.due_date|relative }})</span>{% endif %}</dd>
           <dt>Estimate</dt><dd>{{ task.estimate_hours|hours }}</dd>
           <dt>Created</dt><dd>{{ task.created_at|date("%d %b %Y %H:%M") }}</dd>

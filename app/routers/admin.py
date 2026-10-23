@@ -14,6 +14,7 @@ from app.deps import csrf_protect, require_admin
 from app.models import AuditLog, User
 from app.routers.forms import redirect, to_float
 from app.services import audit, users
+from app.services import item_types as item_type_service
 from app.templating import render
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(csrf_protect)], include_in_schema=False)
@@ -104,6 +105,22 @@ def unlock(request: Request, user_id: int, admin: User = Depends(require_admin),
     audit.record(db, "user.unlock", user=admin, entity=person, request=request)
     db.commit()
     return redirect(f"/admin/users/{user_id}", "Account unlocked.")
+
+
+@router.get("/item-types")
+def item_type_list(request: Request, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return render(request, "admin/item_types.html", {"item_types": item_type_service.list_item_types(db)})
+
+
+@router.post("/item-types/{item_type_id}")
+async def set_item_type_mode(request: Request, item_type_id: int, admin: User = Depends(require_admin),
+                             db: Session = Depends(get_db)):
+    item_type = item_type_service.get_item_type(db, item_type_id)
+    read_only = "1" in (await request.form()).getlist("read_only")
+    item_type_service.set_read_only(db, admin, item_type, read_only, request=request)
+    db.commit()
+    mode = "read-only" if read_only else "editable"
+    return redirect("/admin/item-types", f"{item_type.source_label} {item_type.name} is now {mode}.")
 
 
 @router.get("/audit")

@@ -26,16 +26,18 @@
       <span class="chip" data-count>{{ cards|length }}</span></div>
     <div class="board-list" data-status="{{ status_value.value }}">
       {% for t in cards %}
-      <article class="board-card" data-task-id="{{ t.id }}" tabindex="0">
+      <article class="board-card{% if t.is_read_only %} is-locked{% endif %}" data-task-id="{{ t.id }}" tabindex="0">
         <div class="d-flex justify-content-between align-items-center">
           <span class="task-key">{{ t.key }}</span>
           <div class="d-flex align-items-center gap-1">{{ source_chip(t) }}
+            {% if not t.is_read_only %}
             <div class="dropdown">
               <button class="btn btn-sm btn-link text-body-secondary p-0" data-bs-toggle="dropdown" aria-label="Move {{ t.key }}"><i class="bi bi-three-dots"></i></button>
               <ul class="dropdown-menu dropdown-menu-end">
                 {% for s in TaskStatus if s != t.status %}<li><a class="dropdown-item small" href="#" data-move-to="{{ s.value }}">Move to {{ s.value }}</a></li>{% endfor %}
               </ul>
             </div>
+            {% endif %}
           </div>
         </div>
         <a class="title" href="/tasks/{{ t.id }}">{{ t.title }}</a>

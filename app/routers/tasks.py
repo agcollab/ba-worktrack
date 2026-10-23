@@ -111,6 +111,7 @@ def task_detail(request: Request, task_id: int, user: User = Depends(get_current
 @router.get("/{task_id}/edit")
 def edit_task(request: Request, task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = task_service.get_task(db, user, task_id)
+    task_service.ensure_editable(task)
     return render(request, "tasks/form.html", {"task": task, "selected_project": task.project_id,
                                                 **form_options(db, user)})
 

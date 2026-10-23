@@ -26,9 +26,23 @@ the repository.
 `import_items` asks the connector for up to `max_items` items (JIRA: the project, or the JQL filter;
 ADO: a WIQL query on the project, plus the optional extra condition and area path). Each item becomes
 a task in the integration's local project, or updates the task already linked to it
-(`tasks.external_source` + `external_id`). Remote types and priorities are mapped to local ones
-(`DEFAULT_TYPE_MAP` and the connector's priority map), and the remote status is mapped through the
-status mapping or, failing that, `guess_local_status`.
+(`tasks.external_source` + `external_id`). The task's key is the remote id as is (`PAY-123`, `4567`).
+The remote type is kept as is in `item_types` (one row per source and name, created on first sight)
+and linked through `tasks.item_type_id`; it is also mapped to one of our task types for reports
+(`DEFAULT_TYPE_MAP`). Priorities go through the connector's priority map, and the remote status through
+the status mapping or, failing that, `guess_local_status`.
+
+When `config["import_types"]` lists type names, only those are imported: JIRA adds
+`issuetype in (...)` before any `ORDER BY` of the JQL, ADO adds `[System.WorkItemType] IN (...)` to the WIQL.
+
+## Item types and read-only mode
+
+`fetch_item_types` reads the project's types (JIRA: `GET /project/{key}` → `issueTypes`; ADO:
+`GET /_apis/wit/workitemtypes`, skipping disabled types and the hidden category) and adds new ones as
+editable. An admin can make a type read-only (`item_types.is_read_only`, audited). For tasks of a
+read-only type, `services.tasks.ensure_editable` refuses edits, status changes and deletion from the
+web UI, the board and the API; time, comments, attachments and requirements are still allowed.
+Import and sync write the remote changes with `force=True`, so read-only tasks keep following JIRA / ADO.
 
 ## Two-way status sync
 
@@ -65,8 +79,9 @@ Local status changes forced by a sync skip the workflow rules (a remote item can
 ## Adding a connector
 
 1. Create `app/integrations/<name>.py` with a class that subclasses `BaseConnector`, sets
-   `kind = "<name>"`, a `label`, a `default_status_map`, and implements the six abstract methods
-   (`test_connection`, `fetch_items`, `get_items`, `create_item`, `update_status`, `add_comment`).
+   `kind = "<name>"`, a `label`, a `default_status_map`, and implements the seven abstract methods
+   (`test_connection`, `fetch_items`, `fetch_item_types`, `get_items`, `create_item`, `update_status`,
+   `add_comment`).
    Use `self.request(...)` for HTTP calls to get retries and error handling.
 2. Register it in `CONNECTORS` in `registry.py`.
 3. If it needs extra settings, add them to `config_from_form` in `service.py` and to

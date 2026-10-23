@@ -150,8 +150,17 @@ def get_task(db: Session, user: User, task_id: int) -> Task:
 
 
 def can_edit(user: User, task: Task) -> bool:
-    """Anyone who can see the task (a project member, PM or admin) can edit it."""
+    """Anyone who can see the task (a project member, PM or admin) can edit it, unless its type is read-only."""
+    if task.is_read_only:
+        return False
     return user.is_manager or any(m.user_id == user.id for m in task.project.members)
+
+
+def ensure_editable(task: Task) -> None:
+    """Refuse changes to tasks whose JIRA / ADO item type an admin made read-only."""
+    if task.is_read_only:
+        source = "JIRA" if task.external_source == "jira" else "Azure DevOps"
+        raise Forbidden(f"{task.key} is a {task.item_type.name}, which is read-only here. Change it in {source}.")
 
 
 def _validate(title: str, estimate_hours: float | None, project: Project | None) -> None:
@@ -223,6 +232,7 @@ def update_task(
     due_date: date | None,
     project_id: int | None = None,
 ) -> Task:
+    ensure_editable(task)
     if not can_edit(user, task):
         raise Forbidden("You cannot edit this task.")
     project = task.project
@@ -243,16 +253,20 @@ def update_task(
 
 
 def allowed_next(task: Task) -> list[TaskStatus]:
+    if task.is_read_only:
+        return []
     return [s for s in TaskStatus if s in WORKFLOW[task.status]]
 
 
 def change_status(db: Session, user: User | None, task: Task, new_status: TaskStatus, force: bool = False) -> bool:
     """Move a task along the workflow. Returns False when it was already there.
 
-    force=True skips the workflow (used when JIRA / ADO moved the item).
+    force=True skips the workflow and the read-only check (used when JIRA / ADO moved the item).
     """
     if new_status == task.status:
         return False
+    if not force:
+        ensure_editable(task)
     if not force and new_status not in WORKFLOW[task.status]:
         raise ServiceError(f"A task can't move from {task.status} to {new_status}. "
                            f"Next steps: {', '.join(allowed_next(task)) or 'none'}.")
@@ -265,6 +279,7 @@ def change_status(db: Session, user: User | None, task: Task, new_status: TaskSt
 
 
 def delete_task(db: Session, user: User, task: Task) -> None:
+    ensure_editable(task)
     if not user.is_manager and task.created_by_id != user.id:
         raise Forbidden("Only the creator, a PM or an admin can delete a task.")
     for attachment in task.attachments:

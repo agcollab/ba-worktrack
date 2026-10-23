@@ -55,6 +55,10 @@ class AzureDevOpsConnector(BaseConnector):
         if self.config.get("area_path"):
             area = self.config["area_path"].replace("'", "''")
             query += f" AND [System.AreaPath] UNDER '{area}'"
+        types = self.config.get("import_types") or []
+        if types:
+            names = ", ".join("'" + name.replace("'", "''") + "'" for name in types)
+            query += f" AND [System.WorkItemType] IN ({names})"
         if extra:
             query += f" AND ({extra})"
         return query + " ORDER BY [System.ChangedDate] DESC"
@@ -64,6 +68,15 @@ class AzureDevOpsConnector(BaseConnector):
                             json={"query": self._wiql()}).json()
         ids = [str(w["id"]) for w in data.get("workItems", [])][:limit]
         return self.get_items(ids)
+
+    def fetch_item_types(self) -> list[tuple[str, str | None]]:
+        types = self.request("GET", f"{self.project_path}/_apis/wit/workitemtypes?{API}").json().get("value", [])
+        # Skip the types ADO hides from boards (Code Review Request, Shared Steps...)
+        categories = self.request("GET", f"{self.project_path}/_apis/wit/workitemtypecategories?{API}").json()
+        hidden = {t.get("name") for c in categories.get("value", []) if c.get("referenceName") == "Microsoft.HiddenCategory"
+                  for t in c.get("workItemTypes", [])}
+        return [(t["name"], t.get("description") or None) for t in types
+                if t.get("name") and not t.get("isDisabled") and t["name"] not in hidden]
 
     def get_items(self, external_ids: list[str]) -> list[RemoteItem]:
         items: list[RemoteItem] = []

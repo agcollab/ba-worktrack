@@ -34,6 +34,31 @@
         <div class="sticky-actions d-flex gap-2"><button class="btn btn-primary btn-sm">Save mapping</button><button class="btn btn-ghost btn-sm" name="reset" value="1">Reset to defaults</button></div>
       </form>
     </div>
+    <div class="card mt-4" id="item-types">
+      <div class="card-header d-flex justify-content-between align-items-center">Item types
+        <form method="post" action="/integrations/{{ integration.id }}/item-types/fetch" class="m-0">{{ csrf() }}
+          <button class="btn btn-sm btn-ghost"><i class="bi bi-cloud-download me-1"></i>Fetch from {{ integration.kind|upper }}</button></form></div>
+      {% if item_types %}
+      <form method="post" action="/integrations/{{ integration.id }}/item-types">{{ csrf() }}
+        <div class="card-body">
+          <p class="small text-body-secondary">Imported items keep their {{ "JIRA" if integration.kind == "jira" else "Azure DevOps" }} type and ID.
+            Tick <b>Import</b> to bring in only those types (none ticked = all types). <b>Read-only</b> items can be tracked here
+            (time, comments, files) but are changed only in {{ "JIRA" if integration.kind == "jira" else "Azure DevOps" }}.</p>
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Type</th><th class="text-center">Import</th><th class="text-center">Read-only</th></tr></thead>
+            <tbody>{% for t, count in item_types %}
+              <tr><td><span class="fw-semibold">{{ t.name }}</span> <span class="small text-body-secondary">{{ count }} task{{ "" if count == 1 else "s" }}</span></td>
+                <td class="text-center"><input class="form-check-input" type="checkbox" name="import" value="{{ t.id }}" aria-label="Import {{ t.name }}" {% if t.name in import_types %}checked{% endif %}></td>
+                <td class="text-center"><div class="form-check form-switch d-inline-block m-0"><input class="form-check-input" type="checkbox" role="switch" name="read_only" value="{{ t.id }}" aria-label="{{ t.name }} read-only" {% if t.is_read_only %}checked{% endif %}></div></td></tr>
+            {% endfor %}</tbody>
+          </table>
+        </div>
+        <div class="sticky-actions"><button class="btn btn-primary btn-sm">Save item types</button></div>
+      </form>
+      {% else %}
+      <div class="card-body small text-body-secondary">No item types yet. Fetch them from {{ "JIRA" if integration.kind == "jira" else "Azure DevOps" }}, or run an import: each imported item adds its type here.</div>
+      {% endif %}
+    </div>
     <div class="card mt-4"><div class="card-body small">
       <div class="fw-semibold mb-2">How it works</div>
       <ul class="mb-0 ps-3">

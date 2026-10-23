@@ -8,6 +8,7 @@ from app.models.ai_log import AIGenerationLog
 from app.models.audit import AuditLog
 from app.models.enums import TaskPriority, TaskStatus, TaskType, TestCaseStatus
 from app.models.integration import Integration, IntegrationMapping, SyncLog
+from app.models.item_type import ItemType
 from app.models.project import Project, ProjectMember
 from app.models.report import GeneratedReport
 from app.models.requirement import AcceptanceCriterion, Requirement, TestCase
@@ -23,6 +24,7 @@ __all__ = [
     "GeneratedReport",
     "Integration",
     "IntegrationMapping",
+    "ItemType",
     "Project",
     "ProjectMember",
     "Requirement",

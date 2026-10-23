@@ -33,6 +33,7 @@ erDiagram
     USERS ||--o| RUNNING_TIMERS : "runs"
     TASKS ||--o{ RUNNING_TIMERS : "timed by"
     INTEGRATIONS |o--o{ TASKS : "imported"
+    ITEM_TYPES |o--o{ TASKS : "remote type of"
     INTEGRATIONS ||--o{ SYNC_LOGS : "sync history"
     PROJECTS |o--o{ GENERATED_REPORTS : "reported in"
 
@@ -91,6 +92,7 @@ erDiagram
         string external_id
         string external_url
         int integration_id FK
+        int item_type_id FK "JIRA / ADO type, kept as is"
         string external_status "last status seen remotely"
         string synced_status "local status at last sync"
         datetime synced_at
@@ -201,6 +203,13 @@ erDiagram
         text details
         string ip_address
         datetime created_at
+    }
+    ITEM_TYPES {
+        int id PK
+        string source "jira or ado"
+        string name "as named remotely, UK with source"
+        string description
+        bool is_read_only "set by an admin"
     }
     RUNNING_TIMERS {
         int id PK

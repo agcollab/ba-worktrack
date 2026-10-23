@@ -161,7 +161,11 @@ class BaseConnector(ABC):
 
     @abstractmethod
     def fetch_items(self, limit: int = 200) -> list[RemoteItem]:
-        """Items to import, newest first."""
+        """Items to import, newest first (only the types in config["import_types"] when that is set)."""
+
+    @abstractmethod
+    def fetch_item_types(self) -> list[tuple[str, str | None]]:
+        """The project's work item types as (name, description), exactly as the remote system names them."""
 
     @abstractmethod
     def get_items(self, external_ids: list[str]) -> list[RemoteItem]:

@@ -10,6 +10,7 @@ from app.integrations.registry import CONNECTORS
 from app.models import SyncLog, Task, TaskStatus, User
 from app.routers.forms import redirect, to_int
 from app.services import audit
+from app.services import item_types as item_type_service
 from app.services import projects as project_service
 from app.templating import render
 
@@ -71,6 +72,8 @@ def integration_detail(request: Request, integration_id: int, user: User = Depen
     return render(request, "integrations/detail.html", {
         "integration": integration, "logs": logs, "linked": linked, "mapping": service.status_map(integration),
         "statuses": list(TaskStatus), "policies": service.CONFLICT_POLICIES,
+        "item_types": item_type_service.list_item_types(db, integration.kind),
+        "import_types": set(integration.config.get("import_types") or []),
     })
 
 
@@ -115,6 +118,29 @@ def run_sync(integration_id: int, user: User = Depends(require_admin), db: Sessi
     category = {"ok": "success", "partial": "warning"}.get(result.status, "danger")
     message = f"Status sync finished: {result.summary()}." if result.status != "error" else f"Sync failed: {result.errors[0]}"
     return redirect(f"/integrations/{integration_id}", message, category)
+
+
+@router.post("/{integration_id}/item-types/fetch")
+def fetch_item_types(integration_id: int, user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    integration = service.get_integration(db, integration_id)
+    result = service.fetch_item_types(db, integration, user)
+    db.commit()
+    if result.status == "error":
+        return redirect(f"/integrations/{integration_id}#item-types", f"Couldn't fetch item types: {result.errors[0]}",
+                        "danger")
+    return redirect(f"/integrations/{integration_id}#item-types",
+                    f"Found {result.processed} item types, {result.created} new.")
+
+
+@router.post("/{integration_id}/item-types")
+async def save_item_types(request: Request, integration_id: int, user: User = Depends(require_admin),
+                          db: Session = Depends(get_db)):
+    integration = service.get_integration(db, integration_id)
+    form = await request.form()
+    ids = {key: {i for i in (to_int(str(v)) for v in form.getlist(key)) if i} for key in ("import", "read_only")}
+    service.save_item_type_settings(db, integration, user, ids["import"], ids["read_only"], request=request)
+    db.commit()
+    return redirect(f"/integrations/{integration_id}#item-types", "Item types saved.")
 
 
 @router.post("/{integration_id}/mappings")

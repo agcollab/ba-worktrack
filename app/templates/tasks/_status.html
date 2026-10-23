@@ -8,4 +8,5 @@
       <i class="bi {{ 'bi-arrow-right' if loop.first else 'bi-arrow-return-left' }} me-1"></i>{{ s.value }}</button>
   </form>
   {% endfor %}
+  {% if task.is_read_only %}<span class="small text-body-secondary"><i class="bi bi-lock me-1"></i>{{ task.type_label }} items are read-only here: change them in {{ "JIRA" if task.external_source == "jira" else "Azure DevOps" }}{% if task.external_url %} (<a href="{{ task.external_url }}" target="_blank" rel="noopener">open</a>){% endif %}.</span>{% endif %}
 </div>

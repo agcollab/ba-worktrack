@@ -97,7 +97,7 @@ full list with comments. The important ones:
 | See tasks and reports of projects they belong to | ✓ | ✓ | ✓ |
 | See all projects and the whole team's reports | | ✓ | ✓ |
 | Manage projects, members and integrations | | ✓ | ✓ |
-| Manage users, view audit log and system page | | | ✓ |
+| Manage users, item types (read-only / editable), audit log and system page | | | ✓ |
 
 ## Connecting JIRA and Azure DevOps
 
@@ -117,15 +117,24 @@ Access Token with the **Work Items (Read & write)** scope.
 Then:
 
 1. **Test connection** checks the credentials and the project.
-2. **Import** pulls work items (optionally filtered with JQL or a WIQL condition) into the linked
-   local project, as tasks that link back to the source.
-3. **Status mapping** maps each local status to a remote status or transition name.
-4. **Sync** (by hand, or every `SYNC_INTERVAL_MINUTES` when *auto sync* is on) compares both sides
+2. **Item types** (on the integration page): **Fetch from JIRA/ADO** lists the project's types
+   exactly as named there (Story, Bug, User Story, Feature...). Tick the ones to import, or none for
+   all, and switch any type to **read-only**.
+3. **Import** pulls work items (optionally filtered with JQL or a WIQL condition) into the linked
+   local project, as tasks that link back to the source. Imported tasks keep their JIRA key
+   (`PAY-123`) or ADO id (`4567`) as their key, and their remote item type.
+4. **Status mapping** maps each local status to a remote status or transition name.
+5. **Sync** (by hand, or every `SYNC_INTERVAL_MINUTES` when *auto sync* is on) compares both sides
    since the last sync. A change on one side is copied to the other; a change on both sides is a
    conflict, resolved by the integration's policy (*remote wins*, *local wins* or *log only*) and
    written to the sync history.
-5. From a task you can **push** it to JIRA/ADO as a new item, and push its requirements, acceptance
+6. From a task you can **push** it to JIRA/ADO as a new item, and push its requirements, acceptance
    criteria and test cases as a comment on the linked item.
+
+**Read-only item types.** Admins set each type to *editable* or *read-only* under **Admin → Item types**
+(or on the integration page). Tasks of a read-only type can still be tracked here (time, timer, comments,
+files, requirements), but their fields, status and deletion are locked in the app, the board and the API.
+Changes made in JIRA/ADO still flow in on import and sync. New types start as editable.
 
 See [docs/integrations.md](docs/integrations.md) for how the sync works and how to add a connector.
 

@@ -186,6 +186,9 @@ body {
 .chip { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .5rem; border-radius: .4rem; font-size: .74rem; font-weight: 500; background: var(--wt-surface-2); border: 1px solid var(--wt-border); color: var(--wt-muted); white-space: nowrap; }
 .chip-jira { background: #e0e7ff; color: #1d4ed8; border-color: transparent; }
 .chip-ado { background: #dbeafe; color: #0369a1; border-color: transparent; }
+.chip-locked { background: #fef3c7; color: #92400e; border-color: transparent; }
+[data-bs-theme="dark"] .chip-locked { background: #78350f; color: #fde68a; }
+.board-card.is-locked { cursor: default; }
 .chip-ai { background: #f3e8ff; color: #7e22ce; border-color: transparent; }
 [data-bs-theme="dark"] .chip-jira { background: #1e3a8a; color: #bfdbfe; }
 [data-bs-theme="dark"] .chip-ado { background: #0c4a6e; color: #bae6fd; }

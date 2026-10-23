@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, empty with context %}
+{% block title %}Item types{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Item types</h1><p class="subtitle">JIRA and Azure DevOps types, kept exactly as named there. Read-only items can be tracked here
+    (time, comments, files) but their fields, status and deletion are changed only in JIRA / Azure DevOps.</p></div>
+  <a class="btn btn-ghost" href="/integrations"><i class="bi bi-plug me-1"></i>Integrations</a>
+</div>
+<div class="card">
+  {% if item_types %}
+  <div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Type</th><th>Source</th><th class="text-end">Tasks</th><th>Mode</th></tr></thead>
+    <tbody>{% for t, count in item_types %}
+      <tr><td><span class="fw-semibold">{{ t.name }}</span>{% if t.description %}<div class="small text-body-secondary">{{ t.description|truncate(90) }}</div>{% endif %}</td>
+        <td><span class="chip chip-{{ t.source }}">{{ t.source_label }}</span></td>
+        <td class="text-end">{{ count }}</td>
+        <td><form method="post" action="/admin/item-types/{{ t.id }}" class="m-0">{{ csrf() }}<input type="hidden" name="read_only" value="0">
+          <div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" id="ro-{{ t.id }}" name="read_only" value="1" data-autosubmit {% if t.is_read_only %}checked{% endif %}>
+            <label class="form-check-label small" for="ro-{{ t.id }}">{% if t.is_read_only %}<i class="bi bi-lock me-1"></i>Read-only{% else %}Editable{% endif %}</label></div>
+          <noscript><button class="btn btn-sm btn-ghost mt-1">Save</button></noscript></form></td></tr>
+    {% endfor %}</tbody></table></div>
+  {% else %}
+    {{ empty("bi-tags", "No item types yet", "Open an integration and fetch its item types, or run an import.", "/integrations", "Go to integrations") }}
+  {% endif %}
+</div>
+{% endblock %}

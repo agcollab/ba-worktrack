@@ -10,7 +10,7 @@ def tasks_table(tasks: list[Task], subtitle: str | None = None) -> ExportTable:
     rows = [
         [
             t.key, t.title, t.project.name if t.project else "", str(t.status), str(t.priority),
-            str(t.task_type), t.assignee.full_name if t.assignee else "Unassigned",
+            t.type_label, t.assignee.full_name if t.assignee else "Unassigned",
             t.due_date, t.estimate_hours, t.total_hours,
             "Yes" if t.is_overdue else "", (t.external_source or "").upper(), t.external_id or "",
             t.created_at, t.updated_at,
