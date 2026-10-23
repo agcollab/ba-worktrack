@@ -5,7 +5,14 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/tasks"
+  url: "{{baseurl}}/tasks"
+  body:
+    type: json
+    data: |-
+      {
+        "title": "X",
+        "status": "Finished"
+      }
   auth: inherit
 
 settings:
