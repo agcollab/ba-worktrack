@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Error {{ code }}{% endblock %}
+{% block body %}
+{% if user %}{{ super() }}{% else %}
+<div class="d-grid" style="min-height:100vh;place-items:center">
+  <div class="text-center p-4"><div class="display-5 fw-bold text-primary">{{ code }}</div>
+    <p class="lead">{{ message }}</p><a class="btn btn-primary" href="/">Go home</a></div>
+</div>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="card mx-auto" style="max-width:560px">
+  <div class="card-body text-center p-5">
+    <div class="display-5 fw-bold text-primary mb-2">{{ code }}</div>
+    <p class="lead mb-4">{{ message }}</p>
+    <a class="btn btn-primary" href="/">Back to dashboard</a>
+  </div>
+</div>
+{% endblock %}

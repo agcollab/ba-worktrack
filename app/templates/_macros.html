@@ -1,0 +1,69 @@
+{% macro avatar(person, size="") -%}
+  {%- if person -%}<span class="avatar {{ size }}" title="{{ person.full_name }}" aria-hidden="true">{{ person.initials }}</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro status(value) -%}
+  <span class="status-pill {{ STATUS_CLASSES[value] }}">{{ value }}</span>
+{%- endmacro %}
+
+{% macro priority(value) -%}
+  {%- set icon, cls = PRIORITY_ICONS[value] -%}
+  <span class="prio {{ cls }}"><i class="bi {{ icon }}" aria-hidden="true"></i>{{ value }}</span>
+{%- endmacro %}
+
+{% macro source_chip(task) -%}
+  {%- if task.external_source == "jira" -%}
+    <span class="chip chip-jira" title="Linked to JIRA"><i class="bi bi-link-45deg"></i>{{ task.external_id }}</span>
+  {%- elif task.external_source == "ado" -%}
+    <span class="chip chip-ado" title="Linked to Azure DevOps"><i class="bi bi-link-45deg"></i>#{{ task.external_id }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro due(task) -%}
+  {%- if task.due_date -%}
+    <span class="{% if task.is_overdue %}overdue{% endif %}" title="{{ task.due_date|date }}">
+      {%- if task.is_overdue %}<i class="bi bi-exclamation-circle me-1"></i>{% endif %}{{ task.due_date|date("%d %b") }}</span>
+  {%- else -%}<span class="text-body-secondary">–</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro csrf() -%}<input type="hidden" name="csrf_token" value="{{ csrf_token }}">{%- endmacro %}
+
+{% macro empty(icon, title, text="", action_href="", action_label="") -%}
+  <div class="empty-state">
+    <i class="bi {{ icon }}"></i>
+    <div class="fw-semibold text-body">{{ title }}</div>
+    {% if text %}<div class="small mt-1">{{ text }}</div>{% endif %}
+    {% if action_href %}<a class="btn btn-primary btn-sm mt-3" href="{{ action_href }}">{{ action_label }}</a>{% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro kpi(label, value, icon, hint="", tone="") -%}
+  <div class="card kpi">
+    <div class="label"><span class="kpi-icon {{ tone }}"><i class="bi {{ icon }}"></i></span>{{ label }}</div>
+    <div class="value">{{ value }}</div>
+    {% if hint %}<div class="hint">{{ hint }}</div>{% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro pager(page, pages, fq, base) -%}
+  {% if pages > 1 %}
+  <nav aria-label="Pages" class="d-flex justify-content-between align-items-center px-3 py-2 border-top small">
+    <span class="text-body-secondary">Page {{ page }} of {{ pages }}</span>
+    <div class="btn-group">
+      <a class="btn btn-ghost btn-sm{% if page <= 1 %} disabled{% endif %}" href="{{ base }}?{{ query(fq, page=page-1) }}">Previous</a>
+      <a class="btn btn-ghost btn-sm{% if page >= pages %} disabled{% endif %}" href="{{ base }}?{{ query(fq, page=page+1) }}">Next</a>
+    </div>
+  </nav>
+  {% endif %}
+{%- endmacro %}
+
+{% macro export_menu(base, fq, formats=("csv", "xlsx", "pdf"), label="Export") -%}
+  <div class="dropdown">
+    <button class="btn btn-ghost dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-download me-1"></i>{{ label }}</button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      {% if "csv" in formats %}<li><a class="dropdown-item" href="{{ base }}.csv?{{ query(fq) }}"><i class="bi bi-filetype-csv me-2"></i>CSV</a></li>{% endif %}
+      {% if "xlsx" in formats %}<li><a class="dropdown-item" href="{{ base }}.xlsx?{{ query(fq) }}"><i class="bi bi-file-earmark-excel me-2"></i>Excel</a></li>{% endif %}
+      {% if "pdf" in formats %}<li><a class="dropdown-item" href="{{ base }}.pdf?{{ query(fq) }}"><i class="bi bi-file-earmark-pdf me-2"></i>PDF</a></li>{% endif %}
+    </ul>
+  </div>
+{%- endmacro %}

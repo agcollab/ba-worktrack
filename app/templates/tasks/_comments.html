@@ -1,0 +1,18 @@
+{% from "_macros.html" import avatar %}
+<div id="comments-list">
+  {% for c in task.comments %}
+  <div class="comment">
+    <div class="d-flex align-items-center gap-2">{{ avatar(c.author) }}
+      <span class="fw-semibold small">{{ c.author.full_name if c.author else "Deleted user" }}</span>
+      <span class="small text-body-secondary">{{ c.created_at|relative }}</span>
+      {% if c.author_id == user.id or user.is_admin %}
+      <form class="ms-auto m-0" hx-post="/tasks/{{ task.id }}/comments/{{ c.id }}/delete" hx-target="#comments-list" hx-swap="outerHTML" hx-confirm="Delete this comment?">
+        <button class="btn btn-sm btn-link text-body-secondary p-0" aria-label="Delete comment"><i class="bi bi-trash"></i></button></form>
+      {% endif %}
+    </div>
+    <div class="comment-body">{{ c.body }}</div>
+  </div>
+  {% else %}
+  <div class="small text-body-secondary py-2">No comments yet. Start the conversation.</div>
+  {% endfor %}
+</div>

@@ -1,0 +1,7 @@
+{% from "_macros.html" import status %}
+{% for t in results %}
+  <a href="/tasks/{{ t.id }}" role="option"><span class="task-key">{{ t.key }}</span><span class="flex-grow-1 text-truncate">{{ t.title }}</span>{{ status(t.status) }}</a>
+{% else %}
+  {% if q|length >= 2 %}<div class="px-3 py-2 small text-body-secondary">No tasks match “{{ q }}”.</div>{% endif %}
+{% endfor %}
+{% if results %}<a href="/tasks?q={{ q|urlencode }}" class="border-top small text-primary"><i class="bi bi-arrow-right"></i>See all results</a>{% endif %}
