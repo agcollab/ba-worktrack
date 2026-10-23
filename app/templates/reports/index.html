@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% from "_macros.html" import kpi, avatar, csrf, empty, export_menu with context %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Reports</h1><p class="subtitle">{{ filters.start|date }} – {{ filters.end|date }}{% if not user.is_manager %} · your own work{% endif %}</p></div>
+  <div class="d-flex gap-2">{{ export_menu("/exports/report", fq, formats=("xlsx", "pdf"), label="Export report") }}
+    {{ export_menu("/exports/time", {"start": filters.start, "end": filters.end, "project_id": filters.project_id, "user_id": filters.user_id}, label="Time entries") }}</div>
+</div>
+
+<form class="card mb-4" method="get" action="/reports"><div class="card-body filter-bar">
+  <div class="dropdown">
+    <button class="btn btn-ghost btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown"><i class="bi bi-calendar-range me-1"></i>Period</button>
+    <ul class="dropdown-menu">{% for label, s, e in presets %}<li><a class="dropdown-item" href="/reports?{{ query(fq, start=s, end=e) }}">{{ label }}</a></li>{% endfor %}</ul>
+  </div>
+  <label class="small text-body-secondary" for="start">From</label><input class="form-control form-control-sm" id="start" type="date" name="start" value="{{ filters.start.isoformat() }}">
+  <label class="small text-body-secondary" for="end">to</label><input class="form-control form-control-sm" id="end" type="date" name="end" value="{{ filters.end.isoformat() }}">
+  <select class="form-select form-select-sm" name="project_id" aria-label="Project"><option value="">All projects</option>
+    {% for p in projects %}<option value="{{ p.id }}" {% if filters.project_id == p.id %}selected{% endif %}>{{ p.key }} · {{ p.name }}</option>{% endfor %}</select>
+  {% if user.is_manager %}
+  <select class="form-select form-select-sm" name="user_id" aria-label="Person"><option value="">Everyone</option>
+    {% for p in people %}<option value="{{ p.id }}" {% if filters.user_id == p.id %}selected{% endif %}>{{ p.full_name }}</option>{% endfor %}</select>
+  {% endif %}
+  <button class="btn btn-primary btn-sm">Apply</button>
+</div></form>
+
+{% set eva = summary.estimate_vs_actual %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">{{ kpi("Hours logged", summary.total_hours|hours, "bi-clock-history") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("Tasks completed", summary.tasks_completed, "bi-check2-circle", "%d still open"|format(summary.open_tasks), "ok") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("Avg cycle time", (summary.cycle_time_days ~ " d") if summary.cycle_time_days is not none else "–", "bi-stopwatch", "In Progress → Done") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("Overdue", summary.overdue, "bi-exclamation-octagon", "open past due date", "danger" if summary.overdue else "ok") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("Utilisation", (summary.utilisation_percent ~ "%") if summary.utilisation_percent is not none else "–", "bi-speedometer2", "hours ÷ capacity", "warn" if summary.utilisation_percent and summary.utilisation_percent > 100 else "") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("Actual vs estimate", (eva.ratio ~ "×") if eva.ratio is not none else "–", "bi-rulers", "%s h vs %s h"|format(eva.actual, eva.estimate)) }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("AI adoption", (summary.ai.rate ~ "%") if summary.ai.rate is not none else "–", "bi-stars", "%d generations"|format(summary.ai.generations)) }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("AI-drafted requirements", (summary.ai.ai_requirements_percent ~ "%") if summary.ai.ai_requirements_percent is not none else "–", "bi-journal-text") }}</div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-8"><div class="card h-100"><div class="card-header">Hours per week</div>
+    <div class="card-body"><div class="chart-box"><canvas data-chart="hours_by_week" data-type="bar" data-label="Hours" role="img" aria-label="Hours per week"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Tasks by status</div>
+    <div class="card-body"><div class="chart-box"><canvas data-chart="status" data-type="doughnut" role="img" aria-label="Tasks by status"></canvas></div></div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header">Tasks completed per week</div>
+    <div class="card-body"><div class="chart-box sm"><canvas data-chart="completed_by_week" data-type="bar" data-label="Completed" role="img" aria-label="Tasks completed per week"></canvas></div></div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header">Burndown · open tasks</div>
+    <div class="card-body"><div class="chart-box sm"><canvas data-chart="burndown" data-type="line" data-label="Open tasks" role="img" aria-label="Open tasks over time"></canvas></div></div></div></div>
+  {% if user.is_manager %}
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Hours by person</div>
+    <div class="card-body"><div class="chart-box"><canvas data-chart="hours_by_user" data-type="bar" data-horizontal="1" data-label="Hours" role="img" aria-label="Hours by person"></canvas></div></div></div></div>
+  {% endif %}
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Hours by project</div>
+    <div class="card-body"><div class="chart-box"><canvas data-chart="hours_by_project" data-type="doughnut" role="img" aria-label="Hours by project"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card h-100"><div class="card-header">Hours by task type</div>
+    <div class="card-body"><div class="chart-box"><canvas data-chart="hours_by_type" data-type="bar" data-horizontal="1" data-multicolor="1" data-label="Hours" role="img" aria-label="Hours by task type"></canvas></div></div></div></div>
+</div>
+{{ json_script(charts, "chart-data") }}
+
+<div class="row g-4">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header">Utilisation</div>
+    {% if utilisation %}<div class="table-responsive"><table class="table align-middle"><thead><tr><th>Person</th><th class="text-end">Hours</th><th class="text-end">Capacity</th><th style="width:35%">Utilisation</th></tr></thead><tbody>
+      {% for u in utilisation %}<tr><td><span class="d-inline-flex gap-2 align-items-center">{{ avatar(u.user) }}{{ u.user.full_name }}</span></td><td class="text-end">{{ u.hours|hours }}</td><td class="text-end">{{ u.capacity|hours }}</td>
+        <td><div class="d-flex align-items-center gap-2"><div class="progress flex-grow-1"><div class="progress-bar{% if u.percent > 100 %} bg-danger{% endif %}" style="width: {{ [u.percent, 100]|min }}%"></div></div><span class="small {% if u.percent > 100 %}text-danger fw-semibold{% endif %}">{{ u.percent }}%</span></div></td></tr>{% endfor %}
+    </tbody></table></div>{% else %}{{ empty("bi-clock", "No hours in this period") }}{% endif %}</div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header">Estimate vs actual · largest gaps</div>
+    {% if eva.tasks %}<div class="table-responsive"><table class="table align-middle"><thead><tr><th>Task</th><th class="text-end">Estimate</th><th class="text-end">Actual</th><th class="text-end">Gap</th></tr></thead><tbody>
+      {% for t, est, act in eva.tasks %}<tr><td><div class="task-key">{{ t.key }}</div><a class="row-link" href="/tasks/{{ t.id }}">{{ t.title|truncate(50) }}</a></td><td class="text-end">{{ est|hours }}</td><td class="text-end">{{ act|hours }}</td>
+        <td class="text-end {% if act > est %}text-danger{% else %}text-success{% endif %}">{{ "%+g"|format((act - est)|round(1)) }}h</td></tr>{% endfor %}
+    </tbody></table></div>{% else %}{{ empty("bi-rulers", "No completed tasks with estimates in this period") }}{% endif %}</div></div>
+</div>
+
+{% if user.is_manager %}
+<div class="card mt-4" id="weekly">
+  <div class="card-header"><span>Weekly reports</span>
+    <form class="d-flex gap-2 m-0" method="post" action="/reports/weekly">{{ csrf() }}
+      <input class="form-control form-control-sm" type="date" name="week_start" value="{{ week_start.isoformat() }}" aria-label="Week starting">
+      <select class="form-select form-select-sm" name="project_id" aria-label="Project"><option value="">All projects</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.key }}</option>{% endfor %}</select>
+      <button class="btn btn-primary btn-sm text-nowrap"><i class="bi bi-file-earmark-plus me-1"></i>Generate</button></form></div>
+  {% if reports %}
+  <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Report</th><th>Created</th><th>By</th><th class="text-end">Download</th></tr></thead><tbody>
+    {% for r in reports %}<tr><td>{{ r.title }}</td><td class="small">{{ r.created_at|date("%d %b %Y %H:%M") }}</td><td class="small">{{ r.created_by.full_name if r.created_by else "Scheduled (Friday)" }}</td>
+      <td class="text-end text-nowrap"><a class="btn btn-sm btn-ghost" href="/reports/{{ r.id }}/download.pdf"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+        <a class="btn btn-sm btn-ghost" href="/reports/{{ r.id }}/download.xlsx"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+        <form class="d-inline m-0" method="post" action="/reports/{{ r.id }}/delete" data-confirm="Delete this report?">{{ csrf() }}<button class="btn btn-sm btn-link text-body-secondary" aria-label="Delete report"><i class="bi bi-trash"></i></button></form></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}{{ empty("bi-file-earmark-bar-graph", "No weekly reports yet", "One is created automatically every Friday, or generate one now.") }}{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+{% block vendor_scripts %}<script src="{{ url_for('static', path='vendor/chart.umd.min.js') }}"></script>{% endblock %}

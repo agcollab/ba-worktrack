@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block title %}{{ "Edit " ~ task.key if task else "New task" }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/tasks">Tasks</a>{% if task %}&nbsp;/&nbsp;<a href="/tasks/{{ task.id }}">{{ task.key }}</a>{% endif %}</nav>
+<div class="page-header"><div><h1>{{ "Edit task" if task else "New task" }}</h1></div></div>
+<form method="post" action="{{ '/tasks/%d/edit'|format(task.id) if task else '/tasks' }}" class="card" style="max-width: 920px">
+  {{ csrf() }}
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-12"><label class="form-label" for="title">Title</label>
+        <input class="form-control form-control-lg" id="title" name="title" required maxlength="200" value="{{ task.title if task else '' }}" placeholder="e.g. Write UAC for refund approval flow" autofocus></div>
+      <div class="col-md-6"><label class="form-label" for="project">Project</label>
+        <select class="form-select" id="project" name="project_id" required>
+          {% for p in projects %}<option value="{{ p.id }}" {% if selected_project == p.id %}selected{% endif %}>{{ p.key }} · {{ p.name }}</option>{% endfor %}
+        </select></div>
+      <div class="col-md-6"><label class="form-label" for="assignee">Assignee</label>
+        <select class="form-select" id="assignee" name="assignee_id">
+          <option value="">Unassigned</option>
+          {% for p in people %}<option value="{{ p.id }}" {% if (task and task.assignee_id == p.id) or (not task and p.id == user.id) %}selected{% endif %}>{{ p.full_name }}</option>{% endfor %}
+        </select>
+        <div class="form-text">Only members of the chosen project (or PMs) can be assigned.</div></div>
+      <div class="col-md-4"><label class="form-label" for="type">Type</label>
+        <select class="form-select" id="type" name="task_type">
+          {% for t in TaskType %}<option {% if task and task.task_type == t %}selected{% elif not task and t == TaskType.REQUIREMENTS %}selected{% endif %}>{{ t.value }}</option>{% endfor %}
+        </select></div>
+      <div class="col-md-4"><label class="form-label" for="priority">Priority</label>
+        <select class="form-select" id="priority" name="priority">
+          {% for p in TaskPriority %}<option {% if (task and task.priority == p) or (not task and p == TaskPriority.MEDIUM) %}selected{% endif %}>{{ p.value }}</option>{% endfor %}
+        </select></div>
+      <div class="col-md-2"><label class="form-label" for="est">Estimate (h)</label>
+        <input class="form-control" id="est" name="estimate_hours" type="number" min="0" max="1000" step="0.25" value="{{ task.estimate_hours if task and task.estimate_hours is not none else '' }}"></div>
+      <div class="col-md-2"><label class="form-label" for="due">Due date</label>
+        <input class="form-control" id="due" name="due_date" type="date" value="{{ task.due_date.isoformat() if task and task.due_date else '' }}"></div>
+      <div class="col-12"><label class="form-label" for="desc">Description</label>
+        <textarea class="form-control" id="desc" name="description" rows="8" placeholder="Context, scope, stakeholders, links…">{{ task.description if task and task.description else '' }}</textarea></div>
+    </div>
+  </div>
+  <div class="sticky-actions d-flex gap-2">
+    <button class="btn btn-primary">{{ "Save changes" if task else "Create task" }}</button>
+    <a class="btn btn-ghost" href="{{ '/tasks/%d'|format(task.id) if task else '/tasks' }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

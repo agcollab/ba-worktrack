@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, empty with context %}
+{% block title %}AI Studio{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1><i class="bi bi-stars text-primary me-2"></i>AI Studio</h1>
+    <p class="subtitle">Draft requirements, acceptance criteria and test cases with a local model, then review before saving. Nothing is saved until you approve it.</p></div>
+</div>
+{% if not enabled %}
+<div class="alert alert-info">AI features are turned off. Set <code class="inline">AI_PROVIDER=ollama</code> in the environment to enable them.</div>
+{% else %}
+<div class="row g-4">
+  <div class="col-xl-5">
+    <form class="card" hx-post="/ai/generate" hx-target="#ai-result" hx-swap="outerHTML" hx-indicator="#ai-spinner" hx-disabled-elt="button[type=submit]">
+      <div class="card-header">1 · Describe the need</div>
+      <div class="card-body">
+        <fieldset class="mb-3"><legend class="form-label">Generate</legend>
+          <div class="btn-group w-100" role="group">
+            {% for key, (label, _) in features.items() %}
+            <input type="radio" class="btn-check" name="feature" id="f-{{ key }}" value="{{ key }}" {% if feature == key %}checked{% endif %}>
+            <label class="btn btn-ghost btn-sm" for="f-{{ key }}">{{ label.split(" (")[0] }}</label>
+            {% endfor %}
+          </div></fieldset>
+        <div class="mb-3"><label class="form-label" for="task">For task <span class="text-body-secondary fw-normal">(adds its context)</span></label>
+          <select class="form-select" id="task" name="task_id"><option value="">No task</option>
+            {% for t in tasks %}<option value="{{ t.id }}" {% if task and task.id == t.id %}selected{% endif %}>{{ t.key }} · {{ t.title|truncate(55) }}</option>{% endfor %}</select></div>
+        <div class="mb-3"><label class="form-label" for="src">Input</label>
+          <textarea class="form-control" id="src" name="source_text" rows="10" required minlength="20" maxlength="8000"
+            placeholder="Paste meeting notes, a user story, a process description or an existing requirement…">{{ task.description if task and task.description else '' }}</textarea>
+          <div class="form-text">Runs on your local model; no data leaves your network.</div></div>
+        <button type="submit" class="btn btn-primary w-100"><span id="ai-spinner" class="spinner-border spinner-border-sm me-2 htmx-indicator" aria-hidden="true"></span><i class="bi bi-stars me-1"></i>Generate</button>
+      </div>
+    </form>
+    {% if history %}
+    <div class="card mt-4"><div class="card-header">Your recent generations</div>
+      <ul class="list-group list-group-flush small">{% for h in history %}
+        <li class="list-group-item d-flex justify-content-between"><span>{{ features[h.feature][0] if h.feature in features else h.feature }} · {{ h.created_at|relative }}</span>
+          <span class="chip">{{ "failed" if not h.success else (h.outcome or "not saved") }}</span></li>{% endfor %}</ul></div>
+    {% endif %}
+  </div>
+  <div class="col-xl-7">
+    <div id="ai-result" class="card"><div class="card-header">2 · Review and save</div>
+      {{ empty("bi-magic", "Results appear here", "Generate, then edit, untick anything you don't want, and save to the task.") }}</div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

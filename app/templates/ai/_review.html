@@ -1,0 +1,56 @@
+{% from "_macros.html" import csrf with context %}
+<div id="ai-result" class="card">
+  <div class="card-header"><span>2 · Review {{ label|lower }} · {{ items|length }} drafted</span><span class="small text-body-secondary fw-normal">{{ log.model_name }} · {{ (log.duration_ms / 1000)|round(1) }} s</span></div>
+  <form method="post" action="/ai/save">
+    {{ csrf() }}<input type="hidden" name="log_id" value="{{ log.id }}">
+    <div class="card-body">
+      <div class="alert alert-info small py-2"><i class="bi bi-person-check me-1"></i>AI output can be wrong. Check every item against the source before saving.</div>
+      {% for item in items %}{% set i = loop.index0 %}
+      <div class="review-item">
+        <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="keep-{{ i }}" name="items-{{ i }}-keep" value="1" checked data-keep-toggle>
+          <label class="form-check-label small fw-semibold" for="keep-{{ i }}">Keep item {{ loop.index }}</label></div>
+        {% if feature == "requirements" %}
+          <input class="form-control mb-2 fw-semibold" name="items-{{ i }}-title" value="{{ item.title }}" aria-label="Title">
+          <textarea class="form-control mb-2" name="items-{{ i }}-description" rows="3" aria-label="Description">{{ item.description }}</textarea>
+          <select class="form-select form-select-sm w-auto" name="items-{{ i }}-kind" aria-label="Kind">{% for k in kinds %}<option {% if item.kind == k %}selected{% endif %}>{{ k }}</option>{% endfor %}</select>
+        {% elif feature == "uac" %}
+          <div class="input-group input-group-sm mb-1"><span class="input-group-text" style="width:64px">Given</span><input class="form-control" name="items-{{ i }}-given" value="{{ item.given }}"></div>
+          <div class="input-group input-group-sm mb-1"><span class="input-group-text" style="width:64px">When</span><input class="form-control" name="items-{{ i }}-when" value="{{ item.when }}"></div>
+          <div class="input-group input-group-sm"><span class="input-group-text" style="width:64px">Then</span><input class="form-control" name="items-{{ i }}-then" value="{{ item.then }}"></div>
+        {% else %}
+          <div class="row g-2">
+            <div class="col-9"><input class="form-control form-control-sm fw-semibold" name="items-{{ i }}-title" value="{{ item.title }}" aria-label="Title"></div>
+            <div class="col-3"><select class="form-select form-select-sm" name="items-{{ i }}-priority" aria-label="Priority">{% for p in TaskPriority %}<option {% if item.priority == p.value %}selected{% endif %}>{{ p.value }}</option>{% endfor %}</select></div>
+            <div class="col-12"><input class="form-control form-control-sm" name="items-{{ i }}-preconditions" value="{{ item.preconditions }}" placeholder="Preconditions" aria-label="Preconditions"></div>
+            <div class="col-12"><textarea class="form-control form-control-sm" name="items-{{ i }}-steps" rows="3" aria-label="Steps">{{ item.steps|join("\n") }}</textarea></div>
+            <div class="col-12"><input class="form-control form-control-sm" name="items-{{ i }}-expected_result" value="{{ item.expected_result }}" aria-label="Expected result"></div>
+          </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <div class="row g-2 mt-2">
+        {% if task %}
+          <input type="hidden" name="task_id" value="{{ task.id }}">
+          <div class="col-12 small text-body-secondary">Saving to <b>{{ task.key }} · {{ task.title }}</b></div>
+        {% else %}
+          <div class="col-md-6"><label class="form-label small" for="sp">Save into project</label>
+            <select class="form-select form-select-sm" id="sp" name="project_id">{% for p in projects %}<option value="{{ p.id }}">{{ p.key }} · {{ p.name }}</option>{% endfor %}</select></div>
+        {% endif %}
+        {% if feature != "requirements" %}
+          {% if requirements %}
+          <div class="col-md-6"><label class="form-label small" for="sr">Add to requirement</label>
+            <select class="form-select form-select-sm" id="sr" name="requirement_id"><option value="">A new requirement</option>
+              {% for r in requirements %}<option value="{{ r.id }}">REQ-{{ r.id }} · {{ r.title|truncate(40) }}</option>{% endfor %}</select></div>
+          {% endif %}
+          <div class="col-md-6"><label class="form-label small" for="rt">New requirement title</label>
+            <input class="form-control form-control-sm" id="rt" name="requirement_title" placeholder="{{ task.title if task else 'Requirement title' }}"></div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="sticky-actions d-flex gap-2">
+      <button class="btn btn-primary"><i class="bi bi-check2 me-1"></i>Save selected</button>
+      <button class="btn btn-ghost" formaction="/ai/{{ log.id }}/reject" formnovalidate>Discard</button>
+    </div>
+  </form>
+</div>

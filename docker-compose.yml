@@ -1,0 +1,47 @@
+# Local production-like stack: app + PostgreSQL (+ optional Ollama for AI Studio).
+#   cp .env.example .env    # then set SECRET_KEY, ENCRYPTION_KEY, POSTGRES_PASSWORD, FIRST_ADMIN_*
+#   docker compose up -d --build
+#   docker compose --profile ai up -d     # also start Ollama
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: worktrack
+      POSTGRES_USER: worktrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U worktrack -d worktrack"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://worktrack:${POSTGRES_PASSWORD}@db:5432/worktrack
+      OLLAMA_URL: http://ollama:11434
+      UPLOAD_DIR: /app/data/uploads
+    ports:
+      - "8000:8000"
+    volumes:
+      - appdata:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  pgdata:
+  appdata:
+  ollama:
