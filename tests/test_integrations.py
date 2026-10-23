@@ -33,15 +33,18 @@ class FakeJira:
         self.comments: list[dict] = []
         self.transitions: list[str] = []
         self.created = 0
+        self.jql: list[str] = []
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path, method = request.url.path, request.method
         if path.endswith("/myself"):
             return httpx.Response(200, json={"displayName": "Bot"})
         if "/project/" in path:
-            return httpx.Response(200, json={"key": "PAY", "name": "Payments"})
+            return httpx.Response(200, json={"key": "PAY", "name": "Payments", "issueTypes": [
+                {"name": "Story", "description": "A user story"}, {"name": "Bug"}, {"name": "Epic"}]})
         if path.endswith("/search/jql"):
             body = json.loads(request.content)
+            self.jql.append(body["jql"])
             keys = list(self.issues)
             if body["jql"].startswith("key in"):
                 keys = [k for k in keys if f'"{k}"' in body["jql"]]
@@ -185,6 +188,7 @@ def ado_handler(state):
         path = request.url.path
         assert request.headers["authorization"].startswith("Basic ")
         if path.endswith("/_apis/wit/wiql"):
+            state["wiql"] = json.loads(request.content)["query"]
             return httpx.Response(200, json={"workItems": [{"id": 7}, {"id": 8}]})
         if path.endswith("/workitemsbatch"):
             ids = json.loads(request.content)["ids"]
@@ -196,6 +200,12 @@ def ado_handler(state):
         if path.endswith("/comments"):
             state["comments"] = json.loads(request.content)["text"]
             return httpx.Response(200, json={})
+        if path.endswith("/_apis/wit/workitemtypes"):
+            return httpx.Response(200, json={"value": [{"name": "User Story"}, {"name": "Bug"},
+                                                       {"name": "Code Review Request"}, {"name": "Old", "isDisabled": True}]})
+        if path.endswith("/_apis/wit/workitemtypecategories"):
+            return httpx.Response(200, json={"value": [{"referenceName": "Microsoft.HiddenCategory",
+                                                        "workItemTypes": [{"name": "Code Review Request"}]}]})
         if "/_apis/projects/" in path:
             return httpx.Response(200, json={"name": "Portal", "state": "wellFormed"})
         return httpx.Response(404)

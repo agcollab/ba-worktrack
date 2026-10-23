@@ -70,6 +70,8 @@ class TaskOut(BaseModel):
     status: TaskStatus
     priority: TaskPriority
     task_type: TaskType
+    type_label: str  # the JIRA / ADO item type when imported, else task_type
+    is_read_only: bool
     assignee_id: int | None
     estimate_hours: float | None
     total_hours: float

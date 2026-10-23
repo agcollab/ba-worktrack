@@ -13,7 +13,7 @@
           <a class="row-link" href="/tasks/{{ t.id }}">{{ t.title }}</a></td>
         <td>{{ status(t.status) }}</td>
         <td class="d-none d-lg-table-cell">{{ priority(t.priority) }}</td>
-        <td class="d-none d-md-table-cell"><span class="chip">{{ t.task_type }}</span></td>
+        <td class="d-none d-md-table-cell"><span class="chip">{{ t.type_label }}</span></td>
         <td>{% if t.assignee %}<span class="d-inline-flex align-items-center gap-2">{{ avatar(t.assignee) }}<span class="d-none d-xl-inline small">{{ t.assignee.full_name }}</span></span>{% else %}<span class="text-body-secondary small">Unassigned</span>{% endif %}</td>
         <td>{{ due(t) }}</td>
         <td class="text-end text-nowrap">{{ t.total_hours|hours }} <span class="text-body-secondary">/ {{ t.estimate_hours|hours }}</span></td>

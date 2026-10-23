@@ -1,5 +1,6 @@
 """JIRA connector: Jira Cloud (REST v3, email + API token) or Data Center / Server
 (REST v2, personal access token). Set config["deployment"] = "server" for the latter."""
+import re
 from datetime import date, datetime
 
 import httpx
@@ -92,7 +93,16 @@ class JiraConnector(BaseConnector):
         return ConnectionInfo(True, f"Connected as {who}. Project {project.get('key')} – {project.get('name')}.")
 
     def _jql(self) -> str:
-        return self.config.get("jql") or f'project = "{self.project}" ORDER BY updated DESC'
+        jql = self.config.get("jql") or f'project = "{self.project}" ORDER BY updated DESC'
+        types = self.config.get("import_types") or []
+        if not types:
+            return jql
+        # Add the type filter in front of any ORDER BY clause
+        match = re.search(r"\s+order\s+by\s+.*$", jql, flags=re.I | re.S)
+        where, order = (jql[:match.start()], jql[match.start():]) if match else (jql, "")
+        names = ", ".join('"' + name.replace('"', '\\"') + '"' for name in types)
+        condition = f"issuetype in ({names})"
+        return f"({where.strip()}) AND {condition}{order}" if where.strip() else f"{condition}{order}"
 
     def _search(self, jql: str, limit: int) -> list[RemoteItem]:
         items: list[RemoteItem] = []
@@ -122,6 +132,10 @@ class JiraConnector(BaseConnector):
 
     def fetch_items(self, limit: int = 200) -> list[RemoteItem]:
         return self._search(self._jql(), limit)
+
+    def fetch_item_types(self) -> list[tuple[str, str | None]]:
+        project = self.request("GET", f"{self.api}/project/{self.project}").json()
+        return [(t["name"], t.get("description") or None) for t in project.get("issueTypes", []) if t.get("name")]
 
     def get_items(self, external_ids: list[str]) -> list[RemoteItem]:
         out: list[RemoteItem] = []

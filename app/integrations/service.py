@@ -31,6 +31,7 @@ from app.models import (
     User,
 )
 from app.security import encrypt_secret
+from app.services import item_types as item_type_service
 from app.services import tasks as task_service
 from app.services.errors import NotFound, ServiceError
 from app.services.requirements import format_criterion
@@ -134,6 +135,9 @@ def save_integration(
     if token:  # blank on edit = keep the stored token
         integration.encrypted_token = encrypt_secret(token.strip())
     integration.local_project_id = local_project_id
+    if not creating and "import_types" in integration.config:
+        # Chosen on the integration page, not on this form: keep it
+        config.setdefault("import_types", integration.config["import_types"])
     integration.config = config
     integration.is_enabled = is_enabled
     integration.auto_sync = auto_sync
@@ -231,6 +235,8 @@ def _apply_fields(db: Session, task: Task, item: RemoteItem, integration: Integr
     if item.estimate_hours is not None:
         values["estimate_hours"] = item.estimate_hours
     if item.item_type:
+        # Keep the remote type exactly as named there; also file it under one of our categories for reports
+        values["item_type_id"] = item_type_service.find_or_create(db, integration.kind, item.item_type)[0].id
         mapped = DEFAULT_TYPE_MAP.get(item.item_type.lower())
         if mapped:
             values["task_type"] = mapped
@@ -274,7 +280,7 @@ def _reconcile_status(db: Session, connector: BaseConnector, integration: Integr
             pull()
         elif local_changed and remote_changed:
             result.conflicts.append(
-                f"{task.key} / {item.external_id}: here '{task.synced_status}' → '{task.status}', "
+                f"{task.key}: here '{task.synced_status}' → '{task.status}', "
                 f"remote '{task.external_status}' → '{item.status}' ({CONFLICT_POLICIES[policy]})")
             if policy == "remote_wins":
                 pull()
@@ -340,6 +346,36 @@ def import_items(db: Session, integration: Integration, user: User | None = None
     return result
 
 
+# ---- item types ------------------------------------------------------------------------
+
+def fetch_item_types(db: Session, integration: Integration, user: User | None = None) -> SyncResult:
+    """Read the project's item types from JIRA / ADO and add the ones we don't have yet (as editable)."""
+    result = SyncResult()
+    try:
+        with build_connector(integration) as connector:
+            for name, description in connector.fetch_item_types():
+                result.processed += 1
+                if item_type_service.find_or_create(db, integration.kind, name, description)[1]:
+                    result.created += 1
+    except ConnectorError as exc:
+        result.errors.append(str(exc))
+    _log(db, integration, "types", result, user)
+    db.flush()
+    return result
+
+
+def save_item_type_settings(db: Session, integration: Integration, user: User, import_ids: set[int],
+                            read_only_ids: set[int], request=None) -> None:
+    """Which of this source's item types to import (none ticked = all), and which are read-only here."""
+    types = [t for t, _ in item_type_service.list_item_types(db, integration.kind)]
+    config = integration.config
+    config["import_types"] = [t.name for t in types if t.id in import_ids]
+    integration.config = config
+    for item_type in types:
+        item_type_service.set_read_only(db, user, item_type, item_type.id in read_only_ids, request=request)
+    db.flush()
+
+
 def sync_statuses(db: Session, integration: Integration, user: User | None = None) -> SyncResult:
     """Two-way status sync for every task already linked to this integration."""
     result = SyncResult()
@@ -363,7 +399,7 @@ def sync_statuses(db: Session, integration: Integration, user: User | None = Non
 def push_task(db: Session, integration: Integration, task: Task, user: User) -> RemoteItem:
     """Create a remote issue / work item from a local task and link them."""
     if task.external_id:
-        raise ServiceError(f"{task.key} is already linked to {task.external_source.upper()} {task.external_id}.")
+        raise ServiceError(f"This task is already linked to {task.external_source.upper()} {task.external_id}.")
     result = SyncResult(processed=1)
     try:
         with build_connector(integration) as connector:
@@ -382,6 +418,8 @@ def push_task(db: Session, integration: Integration, task: Task, user: User) -> 
         raise ServiceError(str(exc)) from exc
     task.external_source, task.external_id, task.external_url = integration.kind, item.external_id, item.url
     task.integration_id = integration.id
+    if item.item_type:
+        task.item_type_id = item_type_service.find_or_create(db, integration.kind, item.item_type)[0].id
     task.external_status, task.synced_status, task.synced_at = item.status, task.status.value, datetime.now()
     result.created = 1
     _log(db, integration, "push", result, user)

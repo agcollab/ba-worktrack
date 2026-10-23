@@ -11,6 +11,7 @@ from app.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.integration import Integration
+    from app.models.item_type import ItemType
     from app.models.project import Project
     from app.models.time_entry import TimeEntry
     from app.models.user import User
@@ -45,6 +46,10 @@ class Task(TimestampMixin, Base):
     integration_id: Mapped[int | None] = mapped_column(
         ForeignKey("integrations.id", ondelete="SET NULL"), index=True
     )
+    # The remote work item type, kept as is (Story, Bug, User Story...)
+    item_type_id: Mapped[int | None] = mapped_column(
+        ForeignKey("item_types.id", ondelete="SET NULL"), index=True
+    )
     # Two-way sync bookkeeping: both sides' status at the last successful sync
     external_status: Mapped[str | None] = mapped_column(String(100))
     synced_status: Mapped[str | None] = mapped_column(String(20))
@@ -56,6 +61,7 @@ class Task(TimestampMixin, Base):
     )
     created_by: Mapped["User | None"] = relationship(foreign_keys=[created_by_id])
     integration: Mapped["Integration | None"] = relationship()
+    item_type: Mapped["ItemType | None"] = relationship(lazy="joined")
     time_entries: Mapped[list["TimeEntry"]] = relationship(
         back_populates="task", cascade="all, delete-orphan"
     )
@@ -80,8 +86,20 @@ class Task(TimestampMixin, Base):
 
     @property
     def key(self) -> str:
-        """Readable id such as "PAY-12"."""
+        """Readable id: the JIRA / ADO id for imported items ("PAY-123", "4567"), else "PAY-12"."""
+        if self.external_id:
+            return self.external_id
         return f"{self.project.key}-{self.id}" if self.project else str(self.id)
+
+    @property
+    def type_label(self) -> str:
+        """The remote item type when there is one, else our own task type."""
+        return self.item_type.name if self.item_type else self.task_type.value
+
+    @property
+    def is_read_only(self) -> bool:
+        """True when an admin made this item type read-only: change it in JIRA / ADO instead."""
+        return bool(self.item_type and self.item_type.is_read_only)
 
     def __repr__(self) -> str:
         return f"<Task {self.id} {self.title!r} {self.status}>"

@@ -13,10 +13,11 @@
 
 {% macro source_chip(task) -%}
   {%- if task.external_source == "jira" -%}
-    <span class="chip chip-jira" title="Linked to JIRA"><i class="bi bi-link-45deg"></i>{{ task.external_id }}</span>
+    <span class="chip chip-jira" title="JIRA {{ task.type_label }} {{ task.external_id }}"><i class="bi bi-link-45deg"></i>JIRA</span>
   {%- elif task.external_source == "ado" -%}
-    <span class="chip chip-ado" title="Linked to Azure DevOps"><i class="bi bi-link-45deg"></i>#{{ task.external_id }}</span>
+    <span class="chip chip-ado" title="Azure DevOps {{ task.type_label }} {{ task.external_id }}"><i class="bi bi-link-45deg"></i>ADO</span>
   {%- endif -%}
+  {%- if task.is_read_only %} <span class="chip chip-locked" title="Read-only: change it in {{ 'JIRA' if task.external_source == 'jira' else 'Azure DevOps' }}"><i class="bi bi-lock"></i>Read-only</span>{%- endif -%}
 {%- endmacro %}
 
 {% macro due(task) -%}

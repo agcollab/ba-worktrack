@@ -194,6 +194,7 @@
     document.querySelectorAll(".board-list").forEach(function (list) {
       Sortable.create(list, {
         group: "board", animation: 150, ghostClass: "sortable-ghost", dragClass: "sortable-drag",
+        filter: ".is-locked", preventOnFilter: false,  // read-only item types stay where they are
         onMove: function (evt) {
           var from = evt.from.dataset.status, to = evt.to.dataset.status;
           document.querySelectorAll(".board-list").forEach(function (l) { l.classList.remove("drop-denied"); });
